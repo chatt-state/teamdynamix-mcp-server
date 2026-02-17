@@ -5,4 +5,144 @@
  * tool handlers (tickets, KB articles, people, assets, etc.).
  */
 
-export {};
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+
+/** All supported domain names. */
+export const DOMAIN_NAMES = [
+  "tickets",
+  "knowledge_base",
+  "people",
+  "assets",
+  "projects",
+  "reports",
+  "time",
+  "admin",
+] as const;
+
+export type DomainName = (typeof DOMAIN_NAMES)[number];
+
+/** Interface that each domain module must implement. */
+export interface DomainModule {
+  register(server: McpServer): void;
+}
+
+/** Maps domain names to their module import paths. */
+const MODULE_MAP: Record<DomainName, string> = {
+  tickets: "./tickets/index.js",
+  knowledge_base: "./knowledge-base/index.js",
+  people: "./people/index.js",
+  assets: "./assets/index.js",
+  projects: "./projects/index.js",
+  reports: "./reports/index.js",
+  time: "./time/index.js",
+  admin: "./admin/index.js",
+};
+
+/** Known tool names per domain for reporting after load. */
+const DOMAIN_TOOLS: Record<DomainName, string[]> = {
+  tickets: [
+    "tdx_tickets_search",
+    "tdx_tickets_get",
+    "tdx_tickets_create",
+    "tdx_tickets_update",
+  ],
+  knowledge_base: [
+    "tdx_kb_search",
+    "tdx_kb_get_article",
+  ],
+  people: [
+    "tdx_people_search",
+    "tdx_people_get",
+  ],
+  assets: [
+    "tdx_assets_search",
+    "tdx_assets_get",
+  ],
+  projects: [],
+  reports: [],
+  time: [],
+  admin: [],
+};
+
+/**
+ * Registry that manages lazy-loading of domain tool sets.
+ *
+ * Domains are loaded on demand via `loadDomain()`. Once loaded,
+ * their tools are registered with the MCP server and clients
+ * are notified of the tool list change.
+ */
+class DomainRegistry {
+  private loadedDomains = new Set<DomainName>();
+  private serverRef: McpServer | null = null;
+
+  /**
+   * Sets the MCP server reference used when registering domain tools.
+   */
+  setServer(server: McpServer): void {
+    this.serverRef = server;
+  }
+
+  /**
+   * Loads a domain module and registers its tools with the MCP server.
+   *
+   * If the domain is already loaded, returns an empty array immediately.
+   * Otherwise, dynamically imports the module, calls its `register()`
+   * function, and notifies connected clients of the tool list change.
+   *
+   * @returns The names of tools registered by the domain.
+   */
+  async loadDomain(domain: DomainName): Promise<string[]> {
+    if (this.loadedDomains.has(domain)) {
+      return [];
+    }
+
+    const server = this.serverRef;
+    if (server === null) {
+      throw new Error("DomainRegistry: server not set. Call setServer() first.");
+    }
+
+    const domainModule = await this.importDomain(domain);
+    domainModule.register(server);
+    this.loadedDomains.add(domain);
+
+    server.sendToolListChanged();
+
+    return this.getToolNamesForDomain(domain);
+  }
+
+  /**
+   * Returns the known tool names for a given domain.
+   */
+  getToolNamesForDomain(domain: DomainName): string[] {
+    return DOMAIN_TOOLS[domain] ?? [];
+  }
+
+  /** Returns all currently loaded domain names. */
+  getLoadedDomains(): DomainName[] {
+    return [...this.loadedDomains];
+  }
+
+  /** Checks whether a specific domain has been loaded. */
+  isDomainLoaded(domain: DomainName): boolean {
+    return this.loadedDomains.has(domain);
+  }
+
+  /**
+   * Resets the registry state. Primarily useful for testing.
+   */
+  reset(): void {
+    this.loadedDomains.clear();
+    this.serverRef = null;
+  }
+
+  /**
+   * Dynamically imports a domain module by name.
+   */
+  private async importDomain(domain: DomainName): Promise<DomainModule> {
+    const modulePath = MODULE_MAP[domain];
+    return import(modulePath) as Promise<DomainModule>;
+  }
+}
+
+/** Singleton DomainRegistry instance. */
+export const domainRegistry = new DomainRegistry();

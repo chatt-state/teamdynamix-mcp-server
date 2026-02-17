@@ -4,6 +4,64 @@
  * TeamDynamix MCP Server
  *
  * Entry point for the MCP server that provides access to the TeamDynamix Web API.
+ * Loads configuration, registers tools, pre-loads configured domains, and
+ * starts the selected transport (stdio or HTTP).
  */
 
-console.log('TeamDynamix MCP Server starting...');
+import { getConfig } from "./config.js";
+import { mcpServer } from "./server.js";
+import { domainRegistry, type DomainName, DOMAIN_NAMES } from "./domains/registry.js";
+import { startStdioTransport } from "./transport/stdio.js";
+import { startHttpTransport } from "./transport/http.js";
+import { tokenManager } from "./auth/token-manager.js";
+
+/**
+ * Checks whether a string is a valid DomainName.
+ */
+function isValidDomain(value: string): value is DomainName {
+  return (DOMAIN_NAMES as readonly string[]).includes(value);
+}
+
+async function main() {
+  const config = getConfig();
+
+  // Wire up the domain registry with the server reference
+  domainRegistry.setServer(mcpServer);
+
+  // Pre-load configured domains
+  for (const domain of config.preloadDomains) {
+    if (isValidDomain(domain)) {
+      try {
+        await domainRegistry.loadDomain(domain);
+        console.error(`Pre-loaded domain: ${domain}`);
+      } catch (err) {
+        console.error(`Failed to pre-load domain "${domain}":`, err);
+      }
+    } else {
+      console.error(`Skipping unknown domain in preloadDomains: "${domain}"`);
+    }
+  }
+
+  // Start the selected transport
+  if (config.transport === "stdio") {
+    await startStdioTransport();
+  } else {
+    await startHttpTransport();
+  }
+
+  // Graceful shutdown
+  const shutdown = async () => {
+    console.error("Shutting down TeamDynamix MCP Server...");
+    tokenManager.dispose();
+    await mcpServer.close();
+    process.exit(0);
+  };
+
+  process.on("SIGTERM", () => void shutdown());
+  process.on("SIGINT", () => void shutdown());
+}
+
+main().catch((err: unknown) => {
+  console.error("Failed to start TeamDynamix MCP Server:", err);
+  process.exit(1);
+});

@@ -115,7 +115,7 @@
         "dependencies": [
           "2"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -155,7 +155,8 @@
         ],
         "complexity": 6,
         "recommendedSubtasks": 3,
-        "expansionPrompt": "Split into: 1) JWT login and token storage/decoding, 2) Automatic refresh logic with expiry tracking, 3) 401 error handling and retry mechanism with public API methods."
+        "expansionPrompt": "Split into: 1) JWT login and token storage/decoding, 2) Automatic refresh logic with expiry tracking, 3) 401 error handling and retry mechanism with public API methods.",
+        "updatedAt": "2026-02-17T18:43:49.345Z"
       },
       {
         "id": "4",
@@ -167,7 +168,7 @@
         "dependencies": [
           "3"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -234,7 +235,8 @@
         ],
         "complexity": 8,
         "recommendedSubtasks": 5,
-        "expansionPrompt": "Break down into: 1) HTTP client wrapper with token injection, 2) Rate limit header parsing and per-endpoint state tracking, 3) Request queuing system, 4) Exponential backoff with jitter, 5) Concurrent request handling and testing scenarios."
+        "expansionPrompt": "Break down into: 1) HTTP client wrapper with token injection, 2) Rate limit header parsing and per-endpoint state tracking, 3) Request queuing system, 4) Exponential backoff with jitter, 5) Concurrent request handling and testing scenarios.",
+        "updatedAt": "2026-02-17T18:48:33.705Z"
       },
       {
         "id": "5",
@@ -246,7 +248,7 @@
         "dependencies": [
           "4"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -298,7 +300,8 @@
         ],
         "complexity": 7,
         "recommendedSubtasks": 4,
-        "expansionPrompt": "Divide into: 1) MCP server setup with SDK, 2) Stdio JSON-RPC transport implementation, 3) HTTP SSE transport with health checks, 4) Main entry point with transport selection and signal handling."
+        "expansionPrompt": "Divide into: 1) MCP server setup with SDK, 2) Stdio JSON-RPC transport implementation, 3) HTTP SSE transport with health checks, 4) Main entry point with transport selection and signal handling.",
+        "updatedAt": "2026-02-17T18:53:39.384Z"
       },
       {
         "id": "6",
@@ -310,7 +313,7 @@
         "dependencies": [
           "5"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -350,7 +353,8 @@
         ],
         "complexity": 7,
         "recommendedSubtasks": 3,
-        "expansionPrompt": "Split into: 1) Domain registry and dynamic import lazy loading system, 2) Navigator tools (tdx_navigate, tdx_status), 3) Tool list change notifications and duplicate loading prevention."
+        "expansionPrompt": "Split into: 1) Domain registry and dynamic import lazy loading system, 2) Navigator tools (tdx_navigate, tdx_status), 3) Tool list change notifications and duplicate loading prevention.",
+        "updatedAt": "2026-02-17T18:53:40.992Z"
       },
       {
         "id": "7",
@@ -362,7 +366,7 @@
         "dependencies": [
           "6"
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -413,7 +417,8 @@
         ],
         "complexity": 6,
         "recommendedSubtasks": 4,
-        "expansionPrompt": "Break into: 1) Core search/get tools, 2) CRUD operations (create/update/patch), 3) Feed/contacts/assets/tags/workflow management tools, 4) JSON schema definitions and appId handling."
+        "expansionPrompt": "Break into: 1) Core search/get tools, 2) CRUD operations (create/update/patch), 3) Feed/contacts/assets/tags/workflow management tools, 4) JSON schema definitions and appId handling.",
+        "updatedAt": "2026-02-17T18:53:42.529Z"
       },
       {
         "id": "8",
@@ -692,9 +697,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-02-17T18:40:24.721Z",
+      "lastModified": "2026-02-17T18:53:42.530Z",
       "taskCount": 12,
-      "completedCount": 2,
+      "completedCount": 6,
       "tags": [
         "master"
       ]
