@@ -2,14 +2,14 @@
   "master": {
     "tasks": [
       {
-        "id": 1,
+        "id": "1",
         "title": "Project Setup and Core Infrastructure",
         "description": "Initialize the TypeScript project with proper tooling, dependencies, and project structure",
         "details": "Create a new Node.js TypeScript project with ESM modules. Install dependencies: @modelcontextprotocol/sdk, undici, vitest, eslint, typescript-eslint. Set up tsconfig.json with strict mode and ESM target. Create the directory structure: src/, src/auth/, src/http/, src/domains/, src/middleware/, src/transport/. Configure package.json with proper scripts for build, test, lint, and CLI entry point. Set up ESLint configuration with TypeScript rules.",
         "testStrategy": "Verify project builds successfully with tsc, passes linting with eslint, and all dependencies resolve correctly. Test that the CLI entry point can be executed.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -18,7 +18,8 @@
             "dependencies": [],
             "details": "Run `npm init -y`, set 'type': 'module' in package.json, install @modelcontextprotocol/sdk, undici (prod), vitest, eslint, @typescript-eslint/parser, @typescript-eslint/eslint-plugin (dev). Verify installation with npm ls.",
             "status": "pending",
-            "testStrategy": "Check package.json has correct 'type' field and all dependencies listed. Run `npm install` to verify no errors."
+            "testStrategy": "Check package.json has correct 'type' field and all dependencies listed. Run `npm install` to verify no errors.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -29,7 +30,8 @@
             ],
             "details": "Create tsconfig.json extending @tsconfig/node20/tsconfig.json and @tsconfig/strictest/tsconfig.json. Set module: 'NodeNext', moduleResolution: 'NodeNext', outDir: 'dist', rootDir: 'src', target: 'ES2022'. Include src/ directory.",
             "status": "pending",
-            "testStrategy": "Run `npx tsc --noEmit` to verify configuration is valid without compilation errors."
+            "testStrategy": "Run `npx tsc --noEmit` to verify configuration is valid without compilation errors.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -41,7 +43,8 @@
             ],
             "details": "Run `npx eslint --init` choosing TypeScript, ESM, Node env. Install typescript-eslint plugins if needed. Add scripts to package.json: 'build': 'tsc', 'test': 'vitest', 'lint': 'eslint . --ext .ts', 'dev': 'tsx watch src/index.ts', 'start': 'node dist/index.js'.",
             "status": "pending",
-            "testStrategy": "Run all npm scripts (build, test, lint) to ensure they execute without errors on empty project."
+            "testStrategy": "Run all npm scripts (build, test, lint) to ensure they execute without errors on empty project.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -53,21 +56,26 @@
             ],
             "details": "Create directories: src/, src/auth/, src/http/, src/domains/, src/middleware/, src/transport/. Add src/index.ts with basic CLI: import config from './config.js', log 'MCP Server starting...', handle process signals for graceful shutdown. Ensure .js extensions in imports.",
             "status": "pending",
-            "testStrategy": "Run `npm run build` to compile without errors, then `npm start` to verify CLI entry point executes and handles shutdown signals."
+            "testStrategy": "Run `npm run build` to compile without errors, then `npm start` to verify CLI entry point executes and handles shutdown signals.",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 3,
+        "recommendedSubtasks": 4,
+        "expansionPrompt": "Break down into: 1) Initialize npm project and install dependencies, 2) Configure tsconfig.json with ESM and strict mode, 3) Set up ESLint with TypeScript rules and package.json scripts, 4) Create directory structure and basic CLI entry point.",
+        "updatedAt": "2026-02-17T18:37:04.721Z"
       },
       {
-        "id": 2,
+        "id": "2",
         "title": "Configuration Management System",
         "description": "Implement environment variable-based configuration with validation and defaults",
         "details": "Create src/config.ts that reads and validates all required environment variables: TDX_BASE_URL, TDX_BEID, TDX_WEB_SERVICES_KEY, and optional variables like TDX_TICKETING_APP_ID, TDX_MCP_TRANSPORT, etc. Implement validation for required fields, URL format validation, GUID format validation for BEID/WebServicesKey. Provide sensible defaults for optional fields. Export a typed configuration object that other modules can import.",
         "testStrategy": "Unit tests for configuration validation with valid/invalid environment variables. Test default value assignment and error handling for missing required variables.",
         "priority": "high",
         "dependencies": [
-          1
+          "1"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -76,7 +84,8 @@
             "dependencies": [],
             "details": "Define an interface for the Config type including required fields (TDX_BASE_URL, TDX_BEID, TDX_WEB_SERVICES_KEY) and optional ones (TDX_TICKETING_APP_ID, TDX_MCP_TRANSPORT). Use process.env to read values, provide defaults like 'stdio' for TDX_MCP_TRANSPORT, and export a typed config object. Create environment.d.ts for type safety.",
             "status": "pending",
-            "testStrategy": "Unit tests to verify type definitions compile without errors and default values are correctly assigned when env vars are absent."
+            "testStrategy": "Unit tests to verify type definitions compile without errors and default values are correctly assigned when env vars are absent.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -87,19 +96,24 @@
             ],
             "details": "Use regex for GUID validation (e.g., /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i) and URL validation via new URL() try-catch. Validate required fields are non-empty. Throw descriptive errors and use process.exit(1) if invalid. Integrate into config loading.",
             "status": "pending",
-            "testStrategy": "Unit tests for valid/invalid URLs and GUIDs, missing required vars causing exit, and error messages matching expected formats."
+            "testStrategy": "Unit tests for valid/invalid URLs and GUIDs, missing required vars causing exit, and error messages matching expected formats.",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 4,
+        "recommendedSubtasks": 2,
+        "expansionPrompt": "Divide into: 1) Implement environment variable reading with type definitions, 2) Add comprehensive validation logic for URLs, GUIDs, and defaults with error handling.",
+        "updatedAt": "2026-02-17T18:40:24.720Z"
       },
       {
-        "id": 3,
+        "id": "3",
         "title": "TeamDynamix Authentication and Token Management",
         "description": "Implement JWT token lifecycle management with automatic refresh",
         "details": "Create src/auth/token-manager.ts implementing the TokenManager class. Use POST /api/auth/loginadmin with BEID and WebServicesKey to obtain JWT tokens. Decode JWT to extract exp claim for expiry tracking. Implement automatic refresh 1 hour before expiry (23-hour refresh cycle). Handle 401 responses by immediately re-authenticating and retrying once. Store tokens only in memory, never persist to disk. Provide methods: getValidToken(), forceRefresh(), isAuthenticated().",
         "testStrategy": "Unit tests with mocked HTTP responses for successful login, token refresh, and 401 handling. Integration tests against real TDX API if sandbox available. Test token expiry calculation and refresh timing.",
         "priority": "high",
         "dependencies": [
-          2
+          "2"
         ],
         "status": "pending",
         "subtasks": [
@@ -110,7 +124,8 @@
             "dependencies": [],
             "details": "Use undici for HTTP POST request. Implement JWT decoding without verification (client-side) using base64 parsing to extract payload and parse exp timestamp. Store access_token and expiry in private class properties. Handle login errors and initial authentication.",
             "status": "pending",
-            "testStrategy": "Unit test successful login with mocked HTTP response containing valid JWT, verify token decoding extracts correct exp, test invalid credentials error handling."
+            "testStrategy": "Unit test successful login with mocked HTTP response containing valid JWT, verify token decoding extracts correct exp, test invalid credentials error handling.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -121,7 +136,8 @@
             ],
             "details": "Use setTimeout or similar for scheduling refresh based on calculated refresh time (exp - 1 hour). Implement forceRefresh() to call login endpoint and update stored tokens. getValidToken() checks current time vs expiry and refreshes if needed. isAuthenticated() checks if valid token exists.",
             "status": "pending",
-            "testStrategy": "Unit tests for expiry calculation, mock Date.now() to test refresh timing, test forceRefresh() updates tokens, verify getValidToken() returns fresh token when expired."
+            "testStrategy": "Unit tests for expiry calculation, mock Date.now() to test refresh timing, test forceRefresh() updates tokens, verify getValidToken() returns fresh token when expired.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -133,19 +149,23 @@
             ],
             "details": "Create private _makeAuthenticatedRequest() method that wraps HTTP calls, catches 401, calls forceRefresh(), retries once. Ensure all token-requiring operations use this method. Memory-only storage enforced - no localStorage or file writes. Export public methods from class.",
             "status": "pending",
-            "testStrategy": "Unit tests with mocked HTTP client returning 401, verify auto-refresh and single retry succeeds, test double 401 failure handling, integration test full auth-refresh-retry cycle."
+            "testStrategy": "Unit tests with mocked HTTP client returning 401, verify auto-refresh and single retry succeeds, test double 401 failure handling, integration test full auth-refresh-retry cycle.",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 6,
+        "recommendedSubtasks": 3,
+        "expansionPrompt": "Split into: 1) JWT login and token storage/decoding, 2) Automatic refresh logic with expiry tracking, 3) 401 error handling and retry mechanism with public API methods."
       },
       {
-        "id": 4,
+        "id": "4",
         "title": "HTTP Client with Rate Limiting",
         "description": "Build HTTP client wrapper with TeamDynamix rate limit handling",
         "details": "Create src/http/client.ts and src/middleware/rate-limiter.ts. Implement HTTP client using undici that automatically adds JWT bearer tokens. Parse X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset headers from all responses. Track rate limit state per-endpoint. Queue requests when rate limit is exhausted, calculating wait time from X-RateLimit-Reset header. Implement exponential backoff with jitter for 429 responses. Enforce minimum 5-second wait floor per TDX documentation.",
         "testStrategy": "Unit tests for rate limit header parsing, queue management, and backoff logic. Mock HTTP responses with various rate limit scenarios. Test concurrent request handling and proper queuing behavior.",
         "priority": "high",
         "dependencies": [
-          3
+          "3"
         ],
         "status": "pending",
         "subtasks": [
@@ -156,7 +176,8 @@
             "dependencies": [],
             "details": "Create undici request wrapper that fetches valid token via TokenManager.getValidToken(), adds Authorization: Bearer header. Handle basic request/response flow with TypeScript types.",
             "status": "pending",
-            "testStrategy": "Unit test token injection on requests, mock TokenManager, verify Authorization header presence and correct token value."
+            "testStrategy": "Unit test token injection on requests, mock TokenManager, verify Authorization header presence and correct token value.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -167,7 +188,8 @@
             ],
             "details": "Create RateLimitState interface with limit, remaining, reset timestamp. Implement per-endpoint Map storage in rate-limiter.ts. Update state from every response headers.",
             "status": "pending",
-            "testStrategy": "Unit tests parsing various header combinations, state updates, endpoint-specific tracking with mocked responses."
+            "testStrategy": "Unit tests parsing various header combinations, state updates, endpoint-specific tracking with mocked responses.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -178,7 +200,8 @@
             ],
             "details": "Implement per-endpoint request queues using arrays/PriorityQueue. Check remaining limit before dispatch, queue if 0. Use setTimeout with reset time calculation and 5s minimum floor.",
             "status": "pending",
-            "testStrategy": "Test queueing when remaining=0, proper wait time calculation (current time to reset + 5s floor), sequential dequeuing."
+            "testStrategy": "Test queueing when remaining=0, proper wait time calculation (current time to reset + 5s floor), sequential dequeuing.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -190,7 +213,8 @@
             ],
             "details": "On 429 status, calculate retryAfter = min(60s, base * 2^attempts * (0.5 + 0.5*random)). Integrate with existing queuing. Track per-endpoint attempt counters.",
             "status": "pending",
-            "testStrategy": "Mock 429 responses, verify increasing wait times with jitter variance, reset counters on success, max cap enforcement."
+            "testStrategy": "Mock 429 responses, verify increasing wait times with jitter variance, reset counters on success, max cap enforcement.",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -204,19 +228,23 @@
             ],
             "details": "Test multiple simultaneous requests to same/different endpoints. Verify no race conditions in state/queueing. Add Vitest tests for all scenarios including edge cases.",
             "status": "pending",
-            "testStrategy": "Concurrent test suites with 10+ simultaneous requests, verify correct queuing/backoff/ordering, coverage >90% for rate limiter module."
+            "testStrategy": "Concurrent test suites with 10+ simultaneous requests, verify correct queuing/backoff/ordering, coverage >90% for rate limiter module.",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 8,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "Break down into: 1) HTTP client wrapper with token injection, 2) Rate limit header parsing and per-endpoint state tracking, 3) Request queuing system, 4) Exponential backoff with jitter, 5) Concurrent request handling and testing scenarios."
       },
       {
-        "id": 5,
+        "id": "5",
         "title": "MCP Server Foundation and Transport Layer",
         "description": "Implement MCP server with dual transport support (stdio and HTTP)",
         "details": "Create src/server.ts with MCP server instance using @modelcontextprotocol/sdk. Implement src/transport/stdio.ts for stdin/stdout JSON-RPC communication. Implement src/transport/http.ts for HTTP transport with server-sent events. Create src/index.ts as main entry point that selects transport based on TDX_MCP_TRANSPORT environment variable. Set up proper signal handling (SIGTERM, SIGINT) for graceful shutdown. Implement health check endpoint for HTTP mode.",
         "testStrategy": "Test both transport modes with mock MCP clients. Verify JSON-RPC message framing for stdio mode. Test SSE stream management for HTTP mode. Verify graceful shutdown behavior.",
         "priority": "high",
         "dependencies": [
-          4
+          "4"
         ],
         "status": "pending",
         "subtasks": [
@@ -227,7 +255,8 @@
             "dependencies": [],
             "details": "Import McpServer from '@modelcontextprotocol/sdk/server/mcp.js'. Initialize with name and version. Export server instance for transport connections. Follow SDK examples for basic server creation[1][2][5].",
             "status": "pending",
-            "testStrategy": "Verify server initializes without errors and exposes expected methods"
+            "testStrategy": "Verify server initializes without errors and exposes expected methods",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -238,7 +267,8 @@
             ],
             "details": "Import StdioServerTransport from '@modelcontextprotocol/sdk/server/stdio.js'. Connect MCP server to stdio transport. Handle process stdin/stdout streams per MCP spec. Implement graceful shutdown integration[1][5].",
             "status": "pending",
-            "testStrategy": "Test JSON-RPC message framing with mock client. Verify bidirectional communication over stdio"
+            "testStrategy": "Test JSON-RPC message framing with mock client. Verify bidirectional communication over stdio",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -249,7 +279,8 @@
             ],
             "details": "Use Express.js with StreamableHTTPServerTransport from '@modelcontextprotocol/sdk/server/streamableHttp.js'. Implement /mcp POST endpoint and SSE streams. Add /healthz GET endpoint for HTTP mode. Handle session management[1][2].",
             "status": "pending",
-            "testStrategy": "Test SSE stream management and health endpoint. Verify POST /mcp handles JSON-RPC correctly"
+            "testStrategy": "Test SSE stream management and health endpoint. Verify POST /mcp handles JSON-RPC correctly",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -261,19 +292,23 @@
             ],
             "details": "Read TDX_MCP_TRANSPORT env var ('stdio' or 'http'). Conditionally import and start appropriate transport. Implement SIGTERM/SIGINT handlers for server.close() calls. Export CLI entry point[1][2].",
             "status": "pending",
-            "testStrategy": "Test transport selection via env var. Verify graceful shutdown on signals in both modes"
+            "testStrategy": "Test transport selection via env var. Verify graceful shutdown on signals in both modes",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 7,
+        "recommendedSubtasks": 4,
+        "expansionPrompt": "Divide into: 1) MCP server setup with SDK, 2) Stdio JSON-RPC transport implementation, 3) HTTP SSE transport with health checks, 4) Main entry point with transport selection and signal handling."
       },
       {
-        "id": 6,
+        "id": "6",
         "title": "Domain Registry and Lazy Loading System",
         "description": "Implement the decision tree architecture for dynamic tool loading",
         "details": "Create src/domains/registry.ts implementing the domain registry and lazy loader. Design the domain loading system where each domain exports a register(server) function. Implement dynamic import() for domain modules only when requested. Create the core navigator tools: tdx_navigate (loads domain tools), tdx_status (reports server state). Implement notifications/tools/list_changed emission when new tools are registered. Track loaded domains and prevent duplicate loading.",
         "testStrategy": "Unit tests for domain loading, tool registration, and notification emission. Test that only navigator tools are loaded initially. Verify dynamic loading works correctly and tools become available after navigation.",
         "priority": "high",
         "dependencies": [
-          5
+          "5"
         ],
         "status": "pending",
         "subtasks": [
@@ -284,7 +319,8 @@
             "dependencies": [],
             "details": "Use dynamic import() for on-demand loading. Implement a registry Map to track available domains. Design register(server) interface for domain initialization. Ensure modules load only once via tracking.",
             "status": "pending",
-            "testStrategy": "Unit tests for dynamic import resolution, register function execution, and initial empty state with only navigator tools available."
+            "testStrategy": "Unit tests for dynamic import resolution, register function execution, and initial empty state with only navigator tools available.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -295,7 +331,8 @@
             ],
             "details": "tdx_navigate accepts domain name, triggers lazy load via registry, calls register(server). tdx_status returns JSON with loadedDomains array, tools list, and server status. Integrate with registry.",
             "status": "pending",
-            "testStrategy": "Unit tests verifying tdx_navigate loads specified domain and registers tools. Test tdx_status accurately reflects loaded state before/after navigation."
+            "testStrategy": "Unit tests verifying tdx_navigate loads specified domain and registers tools. Test tdx_status accurately reflects loaded state before/after navigation.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -307,19 +344,23 @@
             ],
             "details": "Use event emitter for tools/list_changed with tool list payload. Maintain Set of loaded domain names. Check existence before loading and skip duplicates. Emit after successful registration.",
             "status": "pending",
-            "testStrategy": "Unit tests for duplicate load prevention (no double registration/emit). Verify notification emits correct payload. Test multiple domains load sequentially without duplicates."
+            "testStrategy": "Unit tests for duplicate load prevention (no double registration/emit). Verify notification emits correct payload. Test multiple domains load sequentially without duplicates.",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 7,
+        "recommendedSubtasks": 3,
+        "expansionPrompt": "Split into: 1) Domain registry and dynamic import lazy loading system, 2) Navigator tools (tdx_navigate, tdx_status), 3) Tool list change notifications and duplicate loading prevention."
       },
       {
-        "id": 7,
+        "id": "7",
         "title": "Tickets Domain Implementation",
         "description": "Implement comprehensive ticketing tools including search, CRUD, and management operations",
         "details": "Create src/domains/tickets/ with index.ts, tools.ts, handlers.ts, types.ts. Implement pre-loaded tools: tdx_search_tickets, tdx_get_ticket. Implement full ticket domain: tdx_create_ticket, tdx_update_ticket, tdx_patch_ticket, tdx_add_ticket_feed_entry, tdx_get_ticket_feed, tdx_manage_ticket_contacts, tdx_manage_ticket_assets, tdx_manage_ticket_tags, tdx_manage_ticket_workflow, etc. Define proper JSON schemas for all tool inputs matching TDX API requirements. Handle appId parameter with fallback to configured default.",
         "testStrategy": "Unit tests for all tool handlers with mocked HTTP client. Test parameter validation against tool schemas. Integration tests for ticket CRUD lifecycle if sandbox available. Test appId handling and default fallback.",
         "priority": "high",
         "dependencies": [
-          6
+          "6"
         ],
         "status": "pending",
         "subtasks": [
@@ -330,7 +371,8 @@
             "dependencies": [],
             "details": "Create src/domains/tickets/ with index.ts, tools.ts, handlers.ts, types.ts files. Define tool functions in tools.ts, implement HTTP handlers in handlers.ts matching TDX API for search and single ticket retrieval. Add initial error handling.",
             "status": "pending",
-            "testStrategy": "Unit tests for search queries with various filters and get by ID. Mock HTTP responses to verify correct API mapping and response parsing."
+            "testStrategy": "Unit tests for search queries with various filters and get by ID. Mock HTTP responses to verify correct API mapping and response parsing.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -341,7 +383,8 @@
             ],
             "details": "Extend tools.ts and handlers.ts with CRUD functions. Map TDX create/update/patch endpoints including required fields like appId. Implement request body construction and response handling for ticket lifecycle operations.",
             "status": "pending",
-            "testStrategy": "Unit tests covering full CRUD flow with mocked API. Validate input parameters, test partial updates vs full updates, and error cases like invalid ticket IDs."
+            "testStrategy": "Unit tests covering full CRUD flow with mocked API. Validate input parameters, test partial updates vs full updates, and error cases like invalid ticket IDs.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -352,7 +395,8 @@
             ],
             "details": "Add all management functions to tools.ts and handlers.ts. Implement endpoints for feed entries, contact/asset/tag/workflow operations matching TDX API specs. Ensure consistent parameter handling across tools.",
             "status": "pending",
-            "testStrategy": "Unit tests for each management operation. Test feed entry addition/retrieval, contact/asset/tag CRUD, workflow transitions. Verify multi-operation sequences on single tickets."
+            "testStrategy": "Unit tests for each management operation. Test feed entry addition/retrieval, contact/asset/tag CRUD, workflow transitions. Verify multi-operation sequences on single tickets.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -363,19 +407,23 @@
             ],
             "details": "Define JSON schemas in types.ts for every tool input matching TDX API requirements. Add appId handling in all handlers with fallback to configured default value. Update index.ts for domain registration.",
             "status": "pending",
-            "testStrategy": "Schema validation tests for all tool parameters. Test appId explicit vs fallback behavior across tools. Integration tests for complete domain registration and tool availability."
+            "testStrategy": "Schema validation tests for all tool parameters. Test appId explicit vs fallback behavior across tools. Integration tests for complete domain registration and tool availability.",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 6,
+        "recommendedSubtasks": 4,
+        "expansionPrompt": "Break into: 1) Core search/get tools, 2) CRUD operations (create/update/patch), 3) Feed/contacts/assets/tags/workflow management tools, 4) JSON schema definitions and appId handling."
       },
       {
-        "id": 8,
+        "id": "8",
         "title": "Knowledge Base and People Domains",
         "description": "Implement knowledge base and people management tool domains",
         "details": "Create src/domains/knowledge-base/ implementing: tdx_search_articles, tdx_get_article, tdx_create_article, tdx_edit_article, tdx_delete_article, tdx_get_kb_categories, tdx_manage_kb_category, tdx_manage_related_articles, tdx_upload_article_attachment. Create src/domains/people/ implementing: tdx_search_people, tdx_lookup_people, tdx_get_person, tdx_create_person, tdx_update_person, tdx_manage_person_groups, tdx_manage_person_roles, tdx_set_person_active. Note that People endpoints don't use appId pattern.",
         "testStrategy": "Unit tests for all KB and People tool handlers. Test article search vs get behavior (search omits attachments/attributes). Test people search and lookup functionality. Verify people endpoints work without appId parameter.",
         "priority": "medium",
         "dependencies": [
-          7
+          "7"
         ],
         "status": "pending",
         "subtasks": [
@@ -386,7 +434,8 @@
             "dependencies": [],
             "details": "Implement in src/domains/knowledge-base/: tdx_search_articles (omits attachments/attributes), tdx_get_article, tdx_create_article, tdx_edit_article, tdx_delete_article, tdx_get_kb_categories, tdx_manage_kb_category, tdx_manage_related_articles, tdx_upload_article_attachment. Include types.ts, tools.ts, handlers.ts with appId pattern.",
             "status": "pending",
-            "testStrategy": "Unit tests for search vs get differences, CRUD operations, category management, attachment upload with mocked HTTP client"
+            "testStrategy": "Unit tests for search vs get differences, CRUD operations, category management, attachment upload with mocked HTTP client",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -397,7 +446,8 @@
             ],
             "details": "Implement in src/domains/people/: tdx_search_people, tdx_lookup_people, tdx_get_person, tdx_create_person, tdx_update_person. Define JSON schemas matching TDX API. Note: No appId parameter required for people endpoints.",
             "status": "pending",
-            "testStrategy": "Unit tests for search/lookup differences, person CRUD without appId, parameter validation against schemas"
+            "testStrategy": "Unit tests for search/lookup differences, person CRUD without appId, parameter validation against schemas",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -409,19 +459,23 @@
             ],
             "details": "Add to src/domains/people/: tdx_manage_person_groups, tdx_manage_person_roles, tdx_set_person_active. Ensure both domains export register(server) function for lazy loading. Update domain registry to include knowledge-base and people domains.",
             "status": "pending",
-            "testStrategy": "Unit tests for group/role management, active status toggling. Integration tests for domain loading and tool availability after navigation"
+            "testStrategy": "Unit tests for group/role management, active status toggling. Integration tests for domain loading and tool availability after navigation",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 6,
+        "recommendedSubtasks": 3,
+        "expansionPrompt": "Divide into: 1) Knowledge base CRUD and category management tools, 2) People search/lookup/CRUD tools, 3) Group/role management and attachment handling with API differences."
       },
       {
-        "id": 9,
+        "id": "9",
         "title": "Assets Domain and Reference Data Tools",
         "description": "Implement assets/CMDB domain and reference data lookup tools",
         "details": "Create src/domains/assets/ implementing: tdx_search_assets, tdx_get_asset, tdx_create_asset, tdx_update_asset, tdx_delete_asset, tdx_manage_asset_resources, tdx_manage_asset_articles, tdx_add_asset_comment. Implement reference data tools in tickets domain: tdx_get_ticket_statuses, tdx_get_ticket_priorities, tdx_get_ticket_types, tdx_get_ticket_sources, tdx_get_ticket_forms, tdx_get_ticket_resources, tdx_get_response_templates. These provide lookup data for populating ticket fields.",
         "testStrategy": "Unit tests for assets CRUD operations and reference data retrieval. Test asset-article associations and resource management. Verify reference data tools return proper lookup values for ticket creation.",
         "priority": "medium",
         "dependencies": [
-          8
+          "8"
         ],
         "status": "pending",
         "subtasks": [
@@ -432,7 +486,8 @@
             "dependencies": [],
             "details": "Define JSON schemas matching TDX API for inputs/outputs. Implement HTTP handlers with proper error handling and appId parameter support. Ensure asset records include standard fields like name, location, specs, ownership.",
             "status": "pending",
-            "testStrategy": "Unit tests for each CRUD operation with mocked TDX responses. Verify search pagination, get single asset details, create/update validation, delete confirmation."
+            "testStrategy": "Unit tests for each CRUD operation with mocked TDX responses. Verify search pagination, get single asset details, create/update validation, delete confirmation.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -443,7 +498,8 @@
             ],
             "details": "In src/domains/assets/ for associations, src/domains/tickets/ for reference tools. Handle many-to-many relationships for resources/articles. Cache reference data where appropriate for performance.",
             "status": "pending",
-            "testStrategy": "Test association CRUD (add/remove/list). Verify reference tools return valid lookup values matching ticket field options. Test comment addition with user attribution."
+            "testStrategy": "Test association CRUD (add/remove/list). Verify reference tools return valid lookup values matching ticket field options. Test comment addition with user attribution.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -454,19 +510,23 @@
             ],
             "details": "Test full lifecycle: create asset → add resources/articles/comments → link to ticket → verify reference data populates correctly. Mock TDX sandbox if available, otherwise use contract testing.",
             "status": "pending",
-            "testStrategy": "End-to-end tests for asset-ticket associations. Validate reference data enums match expected ticket creation payloads. Test error cases like invalid associations or stale reference data."
+            "testStrategy": "End-to-end tests for asset-ticket associations. Validate reference data enums match expected ticket creation payloads. Test error cases like invalid associations or stale reference data.",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 6,
+        "recommendedSubtasks": 3,
+        "expansionPrompt": "Split into: 1) Assets CRUD and resource/article/comment management, 2) Reference data lookup tools for tickets, 3) Integration testing for associations and field population."
       },
       {
-        "id": 10,
+        "id": "10",
         "title": "Docker Image and Distribution Setup",
         "description": "Create Docker image with multi-stage build and set up GitHub Container Registry publishing",
         "details": "Create Dockerfile with multi-stage build: build stage (Node.js 20 + TypeScript compilation) and production stage (Node.js 20 slim). Configure non-root user execution, health check endpoint, signal handling for graceful shutdown. Add OCI image labels (org.opencontainers.image.source, .description, .licenses). Support both stdio and HTTP transport modes via environment variables. Create docker-compose.yml example. Set up GitHub Actions workflow for building and pushing to ghcr.io/chattstate/teamdynamix-mcp-server with proper tagging (latest, semver, sha, edge).",
         "testStrategy": "Test Docker image builds successfully and runs in both transport modes. Verify health check endpoint works. Test image with sample environment variables. Verify GitHub Actions can build and push to registry.",
         "priority": "medium",
         "dependencies": [
-          9
+          "9"
         ],
         "status": "pending",
         "subtasks": [
@@ -477,7 +537,8 @@
             "dependencies": [],
             "details": "Use node:20 as builder stage to install all deps, run npm run build; node:20-slim for runtime with COPY --from=builder /app/dist; add USER node; HEALTHCHECK endpoint; trap signals for shutdown; support TDX_MCP_TRANSPORT env var.",
             "status": "pending",
-            "testStrategy": "Verify docker build succeeds, container runs as non-root (docker inspect), healthcheck passes, graceful shutdown on SIGTERM."
+            "testStrategy": "Verify docker build succeeds, container runs as non-root (docker inspect), healthcheck passes, graceful shutdown on SIGTERM.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -488,7 +549,8 @@
             ],
             "details": "Add LABEL org.opencontainers.image.source=https://github.com/chattstate/teamdynamix-mcp-server, .description='TeamDynamix MCP Server', .licenses='MIT'; Create docker-compose.yml with services for both transport modes using env vars.",
             "status": "pending",
-            "testStrategy": "docker image inspect verifies labels; docker-compose up runs both modes successfully with curl healthcheck."
+            "testStrategy": "docker image inspect verifies labels; docker-compose up runs both modes successfully with curl healthcheck.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -500,19 +562,23 @@
             ],
             "details": "Use actions/checkout, docker/login-action with GITHUB_TOKEN; docker/build-push-action with tags: type=sha, type=ref/event=tag/suffix=, latest, edge; build on push/tags; cache backend=gha.",
             "status": "pending",
-            "testStrategy": "Trigger workflow on tag push, verify images exist in GHCR with correct tags via ghcr.io browser or docker pull."
+            "testStrategy": "Trigger workflow on tag push, verify images exist in GHCR with correct tags via ghcr.io browser or docker pull.",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 5,
+        "recommendedSubtasks": 3,
+        "expansionPrompt": "Break down into: 1) Multi-stage Dockerfile with non-root user and health checks, 2) OCI labels and docker-compose example, 3) GitHub Actions workflow for GHCR publishing."
       },
       {
-        "id": 11,
+        "id": "11",
         "title": "npm Package and CLI Setup",
         "description": "Configure npm package publishing to GitHub Packages with CLI entry point",
         "details": "Configure package.json for publishing to GitHub Packages (@chattstate/teamdynamix-mcp-server). Set up bin field pointing to CLI entry point. Ensure compiled JavaScript (ESM) and TypeScript declarations are included in dist/. Create CLI wrapper that handles environment variable loading and transport selection. Set up GitHub Actions workflow for npm package publishing on releases. Test npx execution and global installation scenarios.",
         "testStrategy": "Test package builds correctly with all necessary files in dist/. Verify CLI entry point works with npx. Test global installation and execution. Verify TypeScript declarations are properly exported.",
         "priority": "medium",
         "dependencies": [
-          10
+          "10"
         ],
         "status": "pending",
         "subtasks": [
@@ -523,7 +589,8 @@
             "dependencies": [],
             "details": "Follow GitHub Docs: Add 'publishConfig': {'registry': 'https://npm.pkg.github.com'} and scoped name. Set 'bin' to CLI wrapper script. Include 'files': ['dist/**/*']. Verify dist/ contains compiled ESM and .d.ts files post-build.",
             "status": "pending",
-            "testStrategy": "Verify package.json validates with npm pack. Check shebang in CLI script and bin resolution with npm bin. Ensure dist/ files are included and TypeScript declarations export correctly."
+            "testStrategy": "Verify package.json validates with npm pack. Check shebang in CLI script and bin resolution with npm bin. Ensure dist/ files are included and TypeScript declarations export correctly.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -534,19 +601,23 @@
             ],
             "details": "CLI wrapper: shebang #!/usr/bin/env node, import config.ts for env vars, parse args for transport. Workflow: Use setup-node action, npm install, build, npm publish with GITHUB_TOKEN. Test with npx @chattstate/teamdynamix-mcp-server --help and npm i -g.",
             "status": "pending",
-            "testStrategy": "Run npx and global install tests locally. Trigger workflow on test tag, verify package publishes to GitHub Packages. Check CLI handles missing env vars gracefully and selects transports correctly."
+            "testStrategy": "Run npx and global install tests locally. Trigger workflow on test tag, verify package publishes to GitHub Packages. Check CLI handles missing env vars gracefully and selects transports correctly.",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 4,
+        "recommendedSubtasks": 2,
+        "expansionPrompt": "Divide into: 1) package.json configuration for GitHub Packages and bin CLI setup, 2) GitHub Actions workflow for npm publishing and npx/global install testing."
       },
       {
-        "id": 12,
+        "id": "12",
         "title": "Comprehensive Testing Suite and CI/CD Pipeline",
         "description": "Implement complete test suite and GitHub Actions workflows for CI/CD",
         "details": "Create comprehensive unit test suite using Vitest covering all domains, authentication, rate limiting, and MCP protocol handling. Implement integration tests for real TDX API (gated behind environment variable). Create MCP protocol tests for tool listing, registration, and notifications. Set up GitHub Actions workflows: ci.yml (build, test, lint on push/PR), release.yml (build and publish on semver tags), nightly.yml (edge builds). Ensure >80% code coverage. Add proper error handling and logging throughout the application.",
         "testStrategy": "Achieve >80% code coverage with unit tests. Integration tests should cover full authentication and API call lifecycle. CI pipeline should catch linting, type, and test failures. Release pipeline should successfully publish both Docker image and npm package.",
         "priority": "medium",
         "dependencies": [
-          11
+          "11"
         ],
         "status": "pending",
         "subtasks": [
@@ -557,7 +628,8 @@
             "dependencies": [],
             "details": "Write tests in src/__tests__/ following Vitest best practices: use describe/it blocks, mock dependencies minimally, test behavior not implementation, aim for isolated fast tests. Cover auth flows, rate limiter logic, domain handlers from tasks 8-9.",
             "status": "pending",
-            "testStrategy": "Run vitest --coverage, verify >60% initial coverage across all modules, no test flakiness, all assertions pass."
+            "testStrategy": "Run vitest --coverage, verify >60% initial coverage across all modules, no test flakiness, all assertions pass.",
+            "parentId": "undefined"
           },
           {
             "id": 2,
@@ -568,7 +640,8 @@
             ],
             "details": "Create tests/__integration__/tdx-api.test.ts using real config from task 2. Test full auth + API lifecycle for key endpoints (search, create, update). Use process.env.USE_REAL_API flag to skip in CI. Mock only external non-TDX dependencies.",
             "status": "pending",
-            "testStrategy": "Manual run with real creds verifies API responses match expected schemas; CI skips unless flagged."
+            "testStrategy": "Manual run with real creds verifies API responses match expected schemas; CI skips unless flagged.",
+            "parentId": "undefined"
           },
           {
             "id": 3,
@@ -579,7 +652,8 @@
             ],
             "details": "Test src/mcp/ handlers: tool listing (all domains), server registration, notification flows. Mock transport layer, verify protocol compliance per @modelcontextprotocol/sdk. Include edge cases like malformed requests.",
             "status": "pending",
-            "testStrategy": "End-to-end MCP flow simulation; validate JSON schemas, error responses, and transport interactions."
+            "testStrategy": "End-to-end MCP flow simulation; validate JSON schemas, error responses, and transport interactions.",
+            "parentId": "undefined"
           },
           {
             "id": 4,
@@ -592,7 +666,8 @@
             ],
             "details": "ci.yml: build/test/lint on push/PR; release.yml: build/publish Docker/npm on semver tags; nightly.yml: edge builds with latest deps. Use matrix for Node versions, cache deps, upload coverage artifacts.",
             "status": "pending",
-            "testStrategy": "Trigger workflows manually/PR, verify green pipelines, successful publishes to registries."
+            "testStrategy": "Trigger workflows manually/PR, verify green pipelines, successful publishes to registries.",
+            "parentId": "undefined"
           },
           {
             "id": 5,
@@ -606,15 +681,23 @@
             ],
             "details": "Run vitest --coverage, iteratively add tests for gaps. Add structured logging (pino?) and error boundaries in auth/domains/mcp. Update config validation from task 2. Enforce coverage threshold in package.json.",
             "status": "pending",
-            "testStrategy": "Coverage report shows >80% lines/branches; integration tests catch unhandled errors; logs contain structured error context."
+            "testStrategy": "Coverage report shows >80% lines/branches; integration tests catch unhandled errors; logs contain structured error context.",
+            "parentId": "undefined"
           }
-        ]
+        ],
+        "complexity": 8,
+        "recommendedSubtasks": 5,
+        "expansionPrompt": "Split into: 1) Unit test suite for all components, 2) Integration tests with real API, 3) MCP protocol tests, 4) GitHub Actions CI/CD workflows (ci/release/nightly), 5) Coverage reporting and error handling."
       }
     ],
     "metadata": {
-      "created": "2026-02-17T18:26:26.723Z",
-      "updated": "2026-02-17T18:26:26.724Z",
-      "description": "Tasks for master context"
+      "version": "1.0.0",
+      "lastModified": "2026-02-17T18:40:24.721Z",
+      "taskCount": 12,
+      "completedCount": 2,
+      "tags": [
+        "master"
+      ]
     }
   }
 }
