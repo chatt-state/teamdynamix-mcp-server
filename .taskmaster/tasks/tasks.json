@@ -483,7 +483,7 @@
         "dependencies": [
           "8"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -522,7 +522,8 @@
         ],
         "complexity": 6,
         "recommendedSubtasks": 3,
-        "expansionPrompt": "Split into: 1) Assets CRUD and resource/article/comment management, 2) Reference data lookup tools for tickets, 3) Integration testing for associations and field population."
+        "expansionPrompt": "Split into: 1) Assets CRUD and resource/article/comment management, 2) Reference data lookup tools for tickets, 3) Integration testing for associations and field population.",
+        "updatedAt": "2026-02-17T19:04:01.412Z"
       },
       {
         "id": "10",
@@ -534,7 +535,7 @@
         "dependencies": [
           "9"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -574,7 +575,8 @@
         ],
         "complexity": 5,
         "recommendedSubtasks": 3,
-        "expansionPrompt": "Break down into: 1) Multi-stage Dockerfile with non-root user and health checks, 2) OCI labels and docker-compose example, 3) GitHub Actions workflow for GHCR publishing."
+        "expansionPrompt": "Break down into: 1) Multi-stage Dockerfile with non-root user and health checks, 2) OCI labels and docker-compose example, 3) GitHub Actions workflow for GHCR publishing.",
+        "updatedAt": "2026-02-17T19:03:36.623Z"
       },
       {
         "id": "11",
@@ -698,9 +700,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-02-17T19:01:21.612Z",
+      "lastModified": "2026-02-17T19:04:01.412Z",
       "taskCount": 12,
-      "completedCount": 8,
+      "completedCount": 10,
       "tags": [
         "master"
       ]

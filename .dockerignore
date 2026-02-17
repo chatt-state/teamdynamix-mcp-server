@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+.taskmaster
+logs
+*.md
+!README.md
+.prettierrc
+eslint.config.js
+src/**/*.test.ts
+coverage

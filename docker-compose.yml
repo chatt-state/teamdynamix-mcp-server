@@ -1,0 +1,15 @@
+services:
+  tdx-mcp:
+    build: .
+    environment:
+      TDX_BASE_URL: ${TDX_BASE_URL}
+      TDX_BEID: ${TDX_BEID}
+      TDX_WEB_SERVICES_KEY: ${TDX_WEB_SERVICES_KEY}
+      TDX_TICKETING_APP_ID: ${TDX_TICKETING_APP_ID:-}
+      TDX_ASSETS_APP_ID: ${TDX_ASSETS_APP_ID:-}
+      TDX_KB_APP_ID: ${TDX_KB_APP_ID:-}
+      TDX_MCP_TRANSPORT: http
+      TDX_MCP_HTTP_PORT: "3000"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
