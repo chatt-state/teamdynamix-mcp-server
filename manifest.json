@@ -1,0 +1,87 @@
+{
+  "manifest_version": "0.3",
+  "name": "teamdynamix-mcp-server",
+  "display_name": "TeamDynamix MCP Server",
+  "version": "0.1.0",
+  "description": "MCP server for the TeamDynamix Web API — search tickets, KB articles, people, and assets via Claude.",
+  "long_description": "Connects Claude to your TeamDynamix instance via the TDX Web API. Provides tools for searching and managing tickets, knowledge base articles, people, and assets. Uses a decision-tree navigation pattern to lazy-load domain tool sets on demand, keeping the initial tool footprint small.",
+  "author": {
+    "name": "Aaron Sachs / Chattanooga State Community College"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/chattstate/teamdynamix-mcp-server",
+  "homepage": "https://github.com/chattstate/teamdynamix-mcp-server#readme",
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "TDX_BASE_URL": "${user_config.base_url}",
+        "TDX_BEID": "${user_config.beid}",
+        "TDX_WEB_SERVICES_KEY": "${user_config.web_services_key}",
+        "TDX_TICKETING_APP_ID": "${user_config.ticketing_app_id}",
+        "TDX_ASSETS_APP_ID": "${user_config.assets_app_id}",
+        "TDX_KB_APP_ID": "${user_config.kb_app_id}"
+      }
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  },
+  "user_config": {
+    "base_url": {
+      "type": "string",
+      "title": "TDX Base URL",
+      "description": "Your TeamDynamix instance URL (e.g. https://yourschool.teamdynamix.com)",
+      "required": true
+    },
+    "beid": {
+      "type": "string",
+      "title": "BEID",
+      "description": "TeamDynamix API BEID (GUID format)",
+      "required": true,
+      "sensitive": true
+    },
+    "web_services_key": {
+      "type": "string",
+      "title": "Web Services Key",
+      "description": "TeamDynamix API Web Services Key (GUID format)",
+      "required": true,
+      "sensitive": true
+    },
+    "ticketing_app_id": {
+      "type": "string",
+      "title": "Ticketing App ID",
+      "description": "TDX Ticketing application ID (optional — auto-discovered if not set)",
+      "required": false
+    },
+    "assets_app_id": {
+      "type": "string",
+      "title": "Assets App ID",
+      "description": "TDX Assets/CI application ID (optional — auto-discovered if not set)",
+      "required": false
+    },
+    "kb_app_id": {
+      "type": "string",
+      "title": "Knowledge Base App ID",
+      "description": "TDX Knowledge Base application ID (optional — auto-discovered if not set)",
+      "required": false
+    }
+  },
+  "tools": [
+    {
+      "name": "tdx_navigate",
+      "description": "Load a TeamDynamix domain tool set (tickets, knowledge_base, people, assets)"
+    },
+    {
+      "name": "tdx_status",
+      "description": "Returns the current status of the TeamDynamix MCP server"
+    }
+  ],
+  "tools_generated": true
+}

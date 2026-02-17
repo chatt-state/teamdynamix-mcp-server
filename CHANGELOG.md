@@ -29,3 +29,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - npm package configuration with CLI entry point (`teamdynamix-mcp-server`)
 - Postbuild script to ensure shebang and executable permissions on `dist/index.js`
 - Package publishing configuration for GitHub Packages registry
+- MCPB manifest (`manifest.json`) for one-click Claude Desktop installation
