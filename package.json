@@ -18,6 +18,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "postbuild": "node scripts/postbuild.mjs",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "test": "vitest run",
@@ -28,11 +29,24 @@
     "format": "prettier --write 'src/**/*.ts'",
     "format:check": "prettier --check 'src/**/*.ts'"
   },
+  "repository": {
+    "type": "git",
+    "url": "github:chattstate/teamdynamix-mcp-server"
+  },
+  "homepage": "https://github.com/chattstate/teamdynamix-mcp-server#readme",
+  "bugs": {
+    "url": "https://github.com/chattstate/teamdynamix-mcp-server/issues"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
   "keywords": [
     "mcp",
     "teamdynamix",
     "itsm",
-    "model-context-protocol"
+    "model-context-protocol",
+    "higher-education"
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
