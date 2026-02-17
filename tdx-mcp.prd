@@ -1,0 +1,936 @@
+# TeamDynamix MCP Server — Product Requirements Document
+
+**Document Version:** 1.0
+**Author:** Aaron Sachs / Chattanooga State Community College
+**Date:** 2026-02-17
+**Status:** Draft
+**Repository:** `github.com/chattstate/teamdynamix-mcp-server` (proposed)
+
+---
+
+# Overview
+
+This document defines the requirements for building a Model Context Protocol (MCP) server that exposes TeamDynamix (TDX) Web API capabilities as tools consumable by Claude (via claude.ai, Cowork, and Claude Code). The server will provide intelligent, context-aware access to TeamDynamix's ticketing, knowledge base, asset/CMDB, people, and project management APIs through a decision tree-based lazy-loading architecture that minimizes token overhead while maximizing utility.
+
+The server targets higher education IT environments running TeamDynamix iPaaS with ticketing as the primary module, though the architecture is designed to be modular enough that peer institutions across the Tennessee community college system could adopt and extend it.
+
+---
+
+# Prerequisites
+
+Before development begins, the following must be in place:
+
+* TeamDynamix administrative service account with BEID and WebServicesKey (obtained from TDAdmin → Organization Details by an admin with "Add BE Administrators" permission)
+* TeamDynamix application IDs for each module in use (Ticketing, Assets/CIs, Knowledge Base, etc.) — these are Int32 values visible in TDAdmin
+* Node.js 20 LTS or later
+* GitHub repository with Actions enabled for CI/CD
+* GitHub Container Registry (ghcr.io) access for publishing Docker images
+* GitHub Packages (npm) access for publishing the npm package
+* Familiarity with the MCP specification (2025-11-25 revision) and JSON-RPC 2.0
+
+---
+
+# Problem Statement
+
+## Current Pain Points
+
+TeamDynamix's REST API is powerful but presents challenges for AI integration. The API surface is enormous — over 200 endpoints across 30+ sections — and each section requires an application identifier (`appId`) parameter. Authentication uses short-lived JWT bearer tokens (24-hour expiry) obtained through either username/password or key-based admin login. Rate limiting is enforced per-endpoint (typically 60 calls/IP/60 seconds, with some endpoints as low as 4 calls/IP/60 seconds for bulk operations and 30/IP/60s for search).
+
+Exposing all 200+ API endpoints as MCP tools simultaneously would be impractical. At approximately 200-500 tokens per tool definition, loading every tool would consume 40,000-100,000 tokens of context before the user even asks a question. This is the core problem the decision tree and lazy-loading architecture solves.
+
+## Target Users
+
+* IT service desk technicians performing ticket operations via Claude/Cowork
+* System administrators managing assets, CIs, and configuration items
+* Knowledge managers maintaining KB articles
+* IT leadership reviewing reports and project status
+* Peer Tennessee community college IT departments adopting the server
+
+---
+
+# TeamDynamix API Analysis
+
+## Authentication Model
+
+TeamDynamix supports three authentication methods through the `/api/auth` endpoints:
+
+**Standard Login** — `POST /api/auth/login` accepts a JSON body with `username` and `password` fields. Returns a JWT bearer token as plain text. The token is valid for 24 hours (verify by decoding the JWT `exp` claim). Rate limited at 60 calls/IP/60s.
+
+**Administrative Login** — `POST /api/auth/loginadmin` accepts a JSON body with `BEID` (Guid) and `WebServicesKey` (Guid). Returns an admin-scoped JWT bearer token. This is the recommended method for service integrations because it does not require storing user credentials and provides elevated permissions. Rate limited at 60 calls/IP/60s.
+
+**SSO Login** — `GET /api/auth/loginsso` performs browser-based SSO. Not applicable for server-to-server integrations.
+
+The MCP server will use the Administrative Login method exclusively. The BEID and WebServicesKey will be provided via environment variables.
+
+## Application Identifier Pattern
+
+A critical architectural detail: most TDX API endpoints require an `{appId}` parameter in the URL path. This is a numeric identifier for the specific TDX application instance (e.g., your ticketing app might be appId 431, your asset management app might be appId 478). A single TDX instance can have multiple ticketing applications or multiple asset applications.
+
+The MCP server must support configuration of multiple application IDs and allow the user (or Claude) to specify which application context to operate in.
+
+## Rate Limiting Architecture
+
+TDX enforces per-endpoint rate limiting with three response headers on every call:
+
+* `X-RateLimit-Limit` — maximum calls in the current window
+* `X-RateLimit-Remaining` — calls remaining in the current window
+* `X-RateLimit-Reset` — RFC 1123 datetime when the window resets
+
+When exceeded, the API returns HTTP 429. TDX recommends parsing `X-RateLimit-Reset` and waiting, with a minimum 5-second floor to account for clock skew. Rate limits are per-method (calling tickets/search does not affect tickets/get limits).
+
+Common rate limits across the API:
+
+| Endpoint Category | Calls/IP/Window | Window (seconds) |
+|---|---|---|
+| Most GET/POST/PUT/DELETE endpoints | 60 | 60 |
+| Ticket search | 30 | 60 |
+| Ticket creation | 120 | 60 |
+| Bulk operations (e.g., add children) | 4 | 60 |
+
+## API Surface by Domain
+
+### Ticketing (Primary Focus)
+
+The ticketing API is the most critical domain and the richest in endpoints. Key operations:
+
+| Operation | Method | Endpoint | Rate Limit |
+|---|---|---|---|
+| Get ticket | GET | `/{appId}/tickets/{id}` | 60/60s |
+| Create ticket | POST | `/{appId}/tickets` | 120/60s |
+| Edit ticket (full) | POST | `/{appId}/tickets/{id}` | 60/60s |
+| Patch ticket | PATCH | `/{appId}/tickets/{id}` | 60/60s |
+| Search tickets | POST | `/{appId}/tickets/search` | 30/60s |
+| Get ticket feed | GET | `/{appId}/tickets/{id}/feed` | 60/60s |
+| Update ticket (via feed) | POST | `/{appId}/tickets/{id}/feed` | 60/60s |
+| Get ticket contacts | GET | `/{appId}/tickets/{id}/contacts` | 60/60s |
+| Add/remove contacts | POST/DELETE | `/{appId}/tickets/{id}/contacts/{uid}` | 60/60s |
+| Get ticket assets/CIs | GET | `/{appId}/tickets/{id}/assets` | 60/60s |
+| Add/remove assets | POST/DELETE | `/{appId}/tickets/{id}/assets/{assetId}` | 60/60s |
+| Add/remove CIs | POST/DELETE | `/{appId}/tickets/{id}/configurationItems/{ciId}` | 60/60s |
+| Add/remove tags | POST/DELETE | `/{appId}/tickets/{id}/tags` | 60/60s |
+| Upload attachment | POST | `/{appId}/tickets/{id}/attachments` | 60/60s |
+| Copy attachment | PUT | `/{appId}/tickets/{sourceId}/attachments/{attachmentId}/copyAttachment` | 60/60s |
+| Change classification | PUT | `/{appId}/tickets/{id}/classification` | 60/60s |
+| Move ticket to app | POST | `/{appId}/tickets/{id}/application` | 60/60s |
+| Set/remove SLA | PUT | `/{appId}/tickets/{id}/sla` | 60/60s |
+| Get workflow | GET | `/{appId}/tickets/{id}/workflow` | 60/60s |
+| Workflow actions | GET | `/{appId}/tickets/{id}/workflow/actions` | 60/60s |
+| Approve workflow step | POST | `/{appId}/tickets/{id}/workflow/approve` | 60/60s |
+| Reassign workflow step | POST | `/{appId}/tickets/{id}/workflow/reassign` | 60/60s |
+| Assign/reassign workflow | PUT | `/{appId}/tickets/{id}/workflow` | 60/60s |
+| Add child tickets | POST | `/{appId}/tickets/{id}/children` | 4/60s |
+| Get ticket forms | GET | `/{appId}/tickets/forms` | 60/60s |
+| Get eligible resources | GET | `/{appId}/tickets/resources` | 60/60s |
+| Get response templates | GET | `/{appId}/tickets/responseTemplates` | 60/60s |
+| Get ticket feed (app-wide) | GET | `/{appId}/tickets/feed` | 60/60s |
+
+Supporting reference data endpoints:
+
+| Operation | Section |
+|---|---|
+| Ticket statuses | TicketStatuses |
+| Ticket priorities | TicketPriorities |
+| Ticket types | TicketTypes |
+| Ticket impacts | TicketImpacts |
+| Ticket urgencies | TicketUrgencies |
+| Ticket sources | TicketSources |
+
+### Knowledge Base
+
+| Operation | Method | Endpoint |
+|---|---|---|
+| Search articles | POST | `/{appId}/knowledgebase/search` |
+| Get article | GET | `/{appId}/knowledgebase/{id}` |
+| Create article | POST | `/{appId}/knowledgebase` |
+| Edit article | PUT | `/{appId}/knowledgebase/{id}` |
+| Delete article | DELETE | `/{appId}/knowledgebase/{id}` |
+| Get categories | GET | `/{appId}/knowledgebase/categories` |
+| Get category | GET | `/{appId}/knowledgebase/categories/{id}` |
+| Create category | POST | `/{appId}/knowledgebase/categories` |
+| Edit category | PUT | `/{appId}/knowledgebase/categories/{id}` |
+| Delete category | DELETE | `/{appId}/knowledgebase/categories/{id}` |
+| Get related articles | GET | `/{appId}/knowledgebase/{id}/related` |
+| Add/remove related | POST/DELETE | `/{appId}/knowledgebase/{id}/related/{relatedId}` |
+| Get article assets/CIs | GET | `/{appId}/knowledgebase/{id}/assetscis` |
+| Add attachment | POST | `/{appId}/knowledgebase/{id}/attachments` |
+
+Note: Search results omit Attachments, Attributes, and Tags — individual article loads are required for full data.
+
+### People
+
+| Operation | Method | Endpoint |
+|---|---|---|
+| Search people | POST | `/people/search` |
+| Lookup people | GET | `/people/lookup` |
+| Get person by UID | GET | `/people/{uid}` |
+| Get person by username | GET | `/people/{username}` |
+| Get UID by username | GET | `/people/getuid/{username}` |
+| Create person | POST | `/people` |
+| Update person | POST | `/people/{uid}` |
+| Patch person | PATCH | `/people/{uid}` |
+| Get user groups | GET | `/people/{uid}/groups` |
+| Add/remove from group | PUT/DELETE | `/people/{uid}/groups/{groupId}` |
+| Bulk add to groups | POST | `/people/{uid}/groups` |
+| Get functional roles | GET | `/people/{uid}/functionalroles` |
+| Add/remove functional role | PUT/DELETE | `/people/{uid}/functionalroles/{roleId}` |
+| Set active status | PUT | `/people/{uid}/isactive` |
+| People import | POST | `/people/import` |
+| User list | GET | `/people/userlist` |
+
+Note: People endpoints do NOT use the `{appId}` pattern — they are global.
+
+### Assets / Configuration Management
+
+| Operation | Method | Endpoint |
+|---|---|---|
+| Search assets | POST | `/{appId}/assets/search` |
+| Get asset | GET | `/{appId}/assets/{id}` |
+| Create asset | POST | `/{appId}/assets` |
+| Edit asset | POST | `/{appId}/assets/{id}` |
+| Patch asset | PATCH | `/{appId}/assets/{id}` |
+| Delete asset | DELETE | `/{appId}/assets/{id}` |
+| Get asset feed | GET | `/{appId}/assets/{id}/feed` |
+| Add comment to asset | POST | `/{appId}/assets/{id}/feed` |
+| Get asset resources | GET | `/{appId}/assets/{id}/users` |
+| Add/remove resource | POST/DELETE | `/{appId}/assets/{id}/users/{resourceId}` |
+| Get asset articles | GET | `/{appId}/assets/{id}/articles` |
+| Add/remove article | POST/DELETE | `/{appId}/assets/{id}/articles/{articleId}` |
+| Asset import (bulk) | POST | `/{appId}/assets/import` |
+| Get asset forms | GET | `/{appId}/assets/forms` |
+
+Additional CMDB sections include Configuration Items, Configuration Item Types, Configuration Relationship Types, Product Models, Product Types, Vendors, Contracts, and Maintenance Windows — each with their own CRUD endpoints.
+
+### Other Domains (Phase 2+)
+
+* **Projects** — Full project lifecycle management including plans, tasks, risks, issues, briefcase files/folders
+* **Reports** — Report Builder report execution
+* **Service Catalog** — Service offerings and request management
+* **Time** — Time entry CRUD and time reports
+* **Groups** — Group management
+* **Locations** — Location management
+* **Accounts** — Account/department management
+* **Integrations/Webhooks** — Webhook management
+* **Attachments** — Global attachment operations
+* **Custom Attributes** — Attribute management
+
+---
+
+# Architecture
+
+## Decision Tree Tool Loading
+
+The core architectural innovation is a decision tree that dynamically loads tool definitions based on what the user is actually trying to do. This reduces initial token overhead from ~50,000+ tokens (all tools) to ~1,500 tokens (the navigator tool plus a few common utilities).
+
+### How It Works
+
+At startup, only a small set of "navigator" tools are registered:
+
+1. **`tdx_navigate`** — The root decision tree tool. Accepts a `domain` parameter (`tickets`, `knowledge_base`, `assets`, `people`, `projects`, `reports`, `time`, `admin`) and dynamically loads the tool set for that domain. Returns a summary of newly available tools.
+
+2. **`tdx_status`** — Reports current authentication state, loaded tool domains, rate limit headroom, and configured application IDs.
+
+3. **`tdx_search_tickets`** — Pre-loaded because it is the single most common operation. Searches tickets with the full `TicketSearch` parameter set.
+
+4. **`tdx_get_ticket`** — Pre-loaded for the same reason. Gets a single ticket by ID.
+
+When Claude determines it needs KB tools (e.g., the user says "find a knowledge base article about VPN setup"), it calls `tdx_navigate` with `domain: "knowledge_base"`. The server then dynamically registers the KB tool set (`tdx_search_articles`, `tdx_get_article`, `tdx_create_article`, etc.) and sends a `notifications/tools/list_changed` notification to inform Claude that new tools are available.
+
+### Tool Domain Hierarchy
+
+```
+tdx_navigate (root)
+├── tickets (pre-loaded: search + get)
+│   ├── tdx_search_tickets ★ (pre-loaded)
+│   ├── tdx_get_ticket ★ (pre-loaded)
+│   ├── tdx_create_ticket
+│   ├── tdx_update_ticket
+│   ├── tdx_patch_ticket
+│   ├── tdx_add_ticket_feed_entry
+│   ├── tdx_get_ticket_feed
+│   ├── tdx_manage_ticket_contacts
+│   ├── tdx_manage_ticket_assets
+│   ├── tdx_manage_ticket_tags
+│   ├── tdx_manage_ticket_workflow
+│   ├── tdx_change_ticket_classification
+│   ├── tdx_move_ticket
+│   ├── tdx_manage_ticket_sla
+│   ├── tdx_add_ticket_children
+│   ├── tdx_upload_ticket_attachment
+│   └── ticket_reference_data
+│       ├── tdx_get_ticket_statuses
+│       ├── tdx_get_ticket_priorities
+│       ├── tdx_get_ticket_types
+│       ├── tdx_get_ticket_sources
+│       ├── tdx_get_ticket_forms
+│       ├── tdx_get_ticket_resources
+│       └── tdx_get_response_templates
+├── knowledge_base
+│   ├── tdx_search_articles
+│   ├── tdx_get_article
+│   ├── tdx_create_article
+│   ├── tdx_edit_article
+│   ├── tdx_delete_article
+│   ├── tdx_get_kb_categories
+│   ├── tdx_manage_kb_category
+│   ├── tdx_manage_related_articles
+│   └── tdx_upload_article_attachment
+├── people
+│   ├── tdx_search_people
+│   ├── tdx_lookup_people
+│   ├── tdx_get_person
+│   ├── tdx_create_person
+│   ├── tdx_update_person
+│   ├── tdx_manage_person_groups
+│   ├── tdx_manage_person_roles
+│   └── tdx_set_person_active
+├── assets
+│   ├── tdx_search_assets
+│   ├── tdx_get_asset
+│   ├── tdx_create_asset
+│   ├── tdx_update_asset
+│   ├── tdx_delete_asset
+│   ├── tdx_manage_asset_resources
+│   ├── tdx_manage_asset_articles
+│   └── tdx_add_asset_comment
+├── projects (phase 2)
+│   ├── tdx_search_projects
+│   ├── tdx_get_project
+│   ├── tdx_manage_project_tasks
+│   └── ...
+├── reports (phase 2)
+│   └── tdx_run_report
+├── time (phase 2)
+│   ├── tdx_create_time_entry
+│   ├── tdx_get_time_entries
+│   └── ...
+└── admin
+    ├── tdx_get_groups
+    ├── tdx_get_locations
+    ├── tdx_get_accounts
+    └── tdx_get_custom_attributes
+```
+
+### Token Impact Analysis
+
+| Scenario | Tools Loaded | Estimated Tokens |
+|---|---|---|
+| Initial load (navigator + common) | 4 tools | ~1,500 |
+| After loading tickets domain | ~20 tools | ~8,000 |
+| After loading tickets + KB | ~30 tools | ~12,000 |
+| All domains loaded | ~60 tools | ~25,000 |
+| Naive approach (all at once) | 200+ tools | ~80,000+ |
+
+## Lazy Loading Implementation
+
+Each domain is implemented as a self-contained module that exports a `register(server)` function. The module is not imported until `tdx_navigate` requests it.
+
+```
+src/
+├── index.ts                  # Entry point, transport setup
+├── server.ts                 # MCP server instance, navigator registration
+├── config.ts                 # Environment/config management
+├── auth/
+│   └── token-manager.ts      # JWT lifecycle, auto-refresh
+├── http/
+│   └── client.ts             # HTTP client with rate-limit handling
+├── domains/
+│   ├── registry.ts           # Domain registry, lazy loader
+│   ├── tickets/
+│   │   ├── index.ts          # register() export
+│   │   ├── tools.ts          # Tool definitions
+│   │   ├── handlers.ts       # Tool handlers
+│   │   └── types.ts          # TypeScript interfaces
+│   ├── knowledge-base/
+│   │   ├── index.ts
+│   │   ├── tools.ts
+│   │   ├── handlers.ts
+│   │   └── types.ts
+│   ├── people/
+│   │   ├── index.ts
+│   │   ├── tools.ts
+│   │   ├── handlers.ts
+│   │   └── types.ts
+│   ├── assets/
+│   │   ├── index.ts
+│   │   ├── tools.ts
+│   │   ├── handlers.ts
+│   │   └── types.ts
+│   └── ... (additional domains)
+├── middleware/
+│   ├── rate-limiter.ts       # Per-endpoint rate limit tracking
+│   └── error-handler.ts     # Standardized error responses
+└── transport/
+    ├── stdio.ts              # stdio transport setup
+    └── http.ts               # HTTP/SSE streamable transport setup
+```
+
+## Dual Transport Support
+
+The server must support both transport protocols:
+
+**stdio** — For local execution with Claude Desktop, Claude Code, and development/testing. The server reads JSON-RPC messages from stdin and writes responses to stdout. This is the default mode.
+
+**HTTP (Streamable HTTP + SSE)** — For remote/shared deployments. The server exposes an HTTP endpoint that supports the MCP Streamable HTTP transport (server-sent events for server-to-client messages, POST for client-to-server messages). This enables Cowork and multi-user scenarios where the MCP server runs as a shared service.
+
+Transport selection is controlled by environment variable or CLI flag:
+
+```
+TDX_MCP_TRANSPORT=stdio     # default
+TDX_MCP_TRANSPORT=http      # HTTP mode
+TDX_MCP_HTTP_PORT=3000      # HTTP port (default 3000)
+TDX_MCP_HTTP_HOST=0.0.0.0   # HTTP bind address
+```
+
+## Authentication & Token Management
+
+The `TokenManager` class handles the JWT lifecycle:
+
+1. On first API call, authenticate using `POST /api/auth/loginadmin` with BEID + WebServicesKey
+2. Cache the JWT token in memory
+3. Decode the JWT to extract the `exp` claim
+4. Set a refresh timer for 1 hour before expiry (tokens last 24 hours, so refresh at 23 hours)
+5. On 401 responses, immediately re-authenticate and retry the failed request once
+6. Never persist tokens to disk
+
+## Rate Limit Management
+
+The `RateLimiter` middleware:
+
+1. Tracks rate limit state per-endpoint using the `X-RateLimit-*` response headers
+2. Before each request, checks if the endpoint has remaining capacity
+3. If remaining = 0, calculates wait time from `X-RateLimit-Reset` and queues the request
+4. Implements an exponential backoff with jitter for 429 responses
+5. Enforces a minimum 5-second wait floor per TDX documentation recommendation
+6. Exposes current rate limit state through the `tdx_status` tool
+
+---
+
+# Configuration
+
+All configuration is provided through environment variables with sensible defaults. No config files.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `TDX_BASE_URL` | Yes | — | TDX instance base URL (e.g., `https://yourschool.teamdynamix.com`) |
+| `TDX_BEID` | Yes | — | Administrative service account BEID (Guid) |
+| `TDX_WEB_SERVICES_KEY` | Yes | — | Administrative service account WebServicesKey (Guid) |
+| `TDX_TICKETING_APP_ID` | No | — | Default ticketing application ID |
+| `TDX_ASSETS_APP_ID` | No | — | Default assets/CI application ID |
+| `TDX_KB_APP_ID` | No | — | Default knowledge base application ID |
+| `TDX_MCP_TRANSPORT` | No | `stdio` | Transport protocol: `stdio` or `http` |
+| `TDX_MCP_HTTP_PORT` | No | `3000` | HTTP transport listen port |
+| `TDX_MCP_HTTP_HOST` | No | `0.0.0.0` | HTTP transport bind address |
+| `TDX_LOG_LEVEL` | No | `info` | Logging level: `debug`, `info`, `warn`, `error` |
+| `TDX_PRELOAD_DOMAINS` | No | `tickets` | Comma-separated list of domains to pre-load at startup |
+| `TDX_RATE_LIMIT_BUFFER` | No | `5` | Reserve this many rate limit slots as headroom |
+
+---
+
+# Tool Specifications (Phase 1)
+
+## Navigator Tools (Always Loaded)
+
+### tdx_navigate
+
+Loads a domain's tool set into the active MCP session.
+
+**Input Schema:**
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "domain": {
+      "type": "string",
+      "enum": ["tickets", "knowledge_base", "people", "assets", "projects", "reports", "time", "admin"],
+      "description": "The TeamDynamix domain to load tools for"
+    }
+  },
+  "required": ["domain"]
+}
+```
+
+**Returns:** A summary of tools that were loaded, including their names and brief descriptions. If the domain is already loaded, returns the current list without reloading.
+
+### tdx_status
+
+Reports the current state of the MCP server.
+
+**Input Schema:**
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+**Returns:** JSON object with authentication state, loaded domains, configured app IDs, and per-endpoint rate limit headroom.
+
+## Tickets Domain
+
+### tdx_search_tickets (pre-loaded)
+
+Searches for tickets matching the specified criteria. Returns summary data only — use `tdx_get_ticket` for full details.
+
+**Input Schema:**
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "appId": {
+      "type": "integer",
+      "description": "Ticketing application ID. Uses default if omitted."
+    },
+    "searchText": {
+      "type": "string",
+      "description": "Free-text search across ticket fields"
+    },
+    "statusIds": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "description": "Filter by status IDs"
+    },
+    "priorityIds": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "description": "Filter by priority IDs"
+    },
+    "typeIds": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "description": "Filter by type IDs"
+    },
+    "responsibilityUids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Filter by responsible person UIDs"
+    },
+    "responsibilityGroupIds": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "description": "Filter by responsible group IDs"
+    },
+    "requestorUids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Filter by requestor UIDs"
+    },
+    "createdDateFrom": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Filter tickets created on or after this date"
+    },
+    "createdDateTo": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Filter tickets created on or before this date"
+    },
+    "maxResults": {
+      "type": "integer",
+      "description": "Maximum number of results to return"
+    }
+  }
+}
+```
+
+### tdx_get_ticket (pre-loaded)
+
+Gets full ticket details by ID including description, custom attributes, and attachments.
+
+**Input Schema:**
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "appId": { "type": "integer" },
+    "ticketId": { "type": "integer", "description": "The ticket ID" }
+  },
+  "required": ["ticketId"]
+}
+```
+
+### tdx_create_ticket
+
+Creates a new ticket. Requires at least one of: `requestorEmail`, `requestorUid`, or `accountId`.
+
+### tdx_update_ticket
+
+Performs a full update of an existing ticket. All writable fields must be provided.
+
+### tdx_patch_ticket
+
+Performs a partial update (PATCH) of an existing ticket. Only changed fields need to be provided. Uses the JSON Patch format expected by the TDX API.
+
+### tdx_add_ticket_feed_entry
+
+Adds a comment/update to a ticket's activity feed. This is the primary mechanism for ticket updates, status changes with comments, and reassignments with notes.
+
+### tdx_get_ticket_feed
+
+Gets the activity feed for a ticket. Supports limiting the number of entries returned.
+
+### tdx_manage_ticket_contacts
+
+Add or remove contacts from a ticket. Contacts are identified by their UID (Guid).
+
+### tdx_manage_ticket_assets
+
+Add or remove assets/CIs from a ticket. Requires TDAssets application access.
+
+### tdx_manage_ticket_tags
+
+Add or remove tags from a ticket.
+
+### tdx_manage_ticket_workflow
+
+View workflow status, approve/reject workflow steps, and reassign workflow steps.
+
+### tdx_get_ticket_statuses / priorities / types / sources / forms / resources / response_templates
+
+Reference data lookup tools for populating ticket fields.
+
+## Knowledge Base Domain
+
+### tdx_search_articles
+
+Search KB articles. Returns summary data (no Attachments, Attributes, or Tags).
+
+### tdx_get_article
+
+Get full article details by ID.
+
+### tdx_create_article / tdx_edit_article / tdx_delete_article
+
+Full CRUD for KB articles.
+
+### tdx_get_kb_categories / tdx_manage_kb_category
+
+Category browsing and CRUD operations.
+
+### tdx_manage_related_articles
+
+Add or remove related article associations.
+
+## People Domain
+
+### tdx_search_people / tdx_lookup_people
+
+Search and lookup people in the TDX people database.
+
+### tdx_get_person
+
+Get full person details by UID or username.
+
+### tdx_create_person / tdx_update_person
+
+Create and update person records.
+
+### tdx_manage_person_groups / tdx_manage_person_roles
+
+Manage group membership and functional role assignments.
+
+## Assets Domain
+
+### tdx_search_assets / tdx_get_asset
+
+Search and retrieve asset records.
+
+### tdx_create_asset / tdx_update_asset / tdx_delete_asset
+
+Full CRUD for assets.
+
+### tdx_manage_asset_resources / tdx_manage_asset_articles
+
+Manage resource assignments and KB article associations on assets.
+
+---
+
+# Docker & Distribution
+
+## Docker Image
+
+The Docker image will be published to GitHub Container Registry at `ghcr.io/chattstate/teamdynamix-mcp-server`.
+
+### Dockerfile Requirements
+
+* Multi-stage build: build stage (Node.js 20 + TypeScript compilation) → production stage (Node.js 20 slim)
+* Non-root user execution
+* Health check endpoint (for HTTP transport mode)
+* Signal handling for graceful shutdown (SIGTERM, SIGINT)
+* Labels following OCI image spec (org.opencontainers.image.source, .description, .licenses)
+* Support for both stdio and HTTP transport modes via environment variables
+
+### Image Tags
+
+* `latest` — latest stable release
+* `x.y.z` — semver release tags
+* `sha-<short>` — commit SHA tags for development
+* `edge` — latest commit on main branch
+
+### Compose Example
+
+```yaml
+services:
+  tdx-mcp:
+    image: ghcr.io/chattstate/teamdynamix-mcp-server:latest
+    environment:
+      TDX_BASE_URL: https://yourschool.teamdynamix.com
+      TDX_BEID: ${TDX_BEID}
+      TDX_WEB_SERVICES_KEY: ${TDX_WEB_SERVICES_KEY}
+      TDX_TICKETING_APP_ID: "431"
+      TDX_MCP_TRANSPORT: http
+      TDX_MCP_HTTP_PORT: "3000"
+    ports:
+      - "3000:3000"
+```
+
+## npm Package
+
+The npm package will be published to GitHub Packages at `@chattstate/teamdynamix-mcp-server`.
+
+### Package Artifacts
+
+* Compiled JavaScript (ESM) in `dist/`
+* TypeScript type declarations in `dist/`
+* CLI entry point for `npx @chattstate/teamdynamix-mcp-server`
+* `bin` field in `package.json` pointing to the CLI entry
+
+### Installation Methods
+
+```bash
+# Via npx (stdio mode, for Claude Desktop config)
+npx @chattstate/teamdynamix-mcp-server
+
+# Global install
+npm install -g @chattstate/teamdynamix-mcp-server
+
+# Docker (HTTP mode)
+docker run -e TDX_BASE_URL=... -e TDX_BEID=... -e TDX_WEB_SERVICES_KEY=... \
+  ghcr.io/chattstate/teamdynamix-mcp-server:latest
+```
+
+---
+
+# CI/CD Pipeline
+
+## GitHub Actions Workflows
+
+### Build & Test (`ci.yml`)
+
+Triggered on push to main and pull requests.
+
+1. Checkout code
+2. Setup Node.js 20
+3. Install dependencies (`npm ci`)
+4. Lint (`eslint`)
+5. Type check (`tsc --noEmit`)
+6. Run unit tests (`vitest`)
+7. Run integration tests (if TDX_BASE_URL secret is configured)
+8. Build (`tsc`)
+9. Build Docker image (no push)
+
+### Release (`release.yml`)
+
+Triggered on semver tags (`v*`).
+
+1. All steps from CI
+2. Build and push Docker image to ghcr.io with appropriate tags
+3. Publish npm package to GitHub Packages
+4. Create GitHub Release with changelog
+
+### Nightly (`nightly.yml`)
+
+Triggered on cron schedule.
+
+1. All steps from CI
+2. Build and push Docker image with `edge` tag
+
+---
+
+# Testing Strategy
+
+## Unit Tests
+
+Every domain module will have corresponding test files using Vitest:
+
+* Mock the HTTP client to test tool handlers without hitting the real API
+* Test parameter validation for all tool schemas
+* Test rate limit tracking logic
+* Test token refresh lifecycle
+* Test decision tree navigation and domain loading
+
+## Integration Tests
+
+Optional tests that run against a real TDX sandbox (gated behind environment variable):
+
+* Authentication flow (admin login, token refresh)
+* Ticket CRUD lifecycle
+* KB article CRUD lifecycle
+* Search operations
+* Rate limit header parsing
+
+## MCP Protocol Tests
+
+Test the MCP protocol layer:
+
+* Tool listing (verify only navigator tools on startup)
+* Tool registration after navigate call
+* `notifications/tools/list_changed` emission
+* stdio transport message framing
+* HTTP transport SSE stream management
+
+---
+
+# Security Considerations
+
+* The BEID and WebServicesKey are sensitive credentials — they must never be logged, included in error messages, or exposed through the `tdx_status` tool
+* JWT tokens are cached in memory only and never persisted to disk
+* The HTTP transport should be deployed behind a reverse proxy with TLS in production
+* The Docker image runs as a non-root user
+* All user-supplied input to API calls is validated against the tool schema before forwarding to TDX
+* The server does not support arbitrary API passthrough — only defined tools can be invoked
+
+---
+
+# Phased Delivery
+
+## Phase 1 — Core (Weeks 1-4)
+
+* Project scaffolding (TypeScript, ESM, Vitest, ESLint)
+* MCP server framework with dual transport (stdio + HTTP)
+* Authentication (admin login, token lifecycle)
+* Rate limit middleware
+* Decision tree navigator (`tdx_navigate`, `tdx_status`)
+* Tickets domain (all tools)
+* Knowledge Base domain (all tools)
+* People domain (search, get, lookup)
+* Docker image build + ghcr.io publish
+* npm package build + GitHub Packages publish
+* CI/CD pipeline
+* Unit tests (>80% coverage)
+
+## Phase 2 — Extended (Weeks 5-8)
+
+* Assets/CMDB domain (all tools)
+* People domain (full CRUD, group/role management)
+* Projects domain (search, get, tasks)
+* Time domain (time entries)
+* Reference data caching (statuses, priorities, types — refresh every 4 hours)
+* Integration test suite
+* Documentation site (README, API reference, deployment guide)
+
+## Phase 3 — Advanced (Weeks 9-12)
+
+* Reports domain
+* Service Catalog domain
+* Webhook management tools
+* MCP Resources support (expose ticket/article data as MCP resources for context)
+* MCP Prompts support (pre-built prompts for common workflows like "triage this ticket")
+* Admin domain (locations, accounts, attributes)
+* Performance optimization and caching
+
+---
+
+# Claude Desktop / Cowork Configuration
+
+### Claude Desktop (stdio)
+
+```json
+{
+  "mcpServers": {
+    "teamdynamix": {
+      "command": "npx",
+      "args": ["@chattstate/teamdynamix-mcp-server"],
+      "env": {
+        "TDX_BASE_URL": "https://yourschool.teamdynamix.com",
+        "TDX_BEID": "your-beid-guid",
+        "TDX_WEB_SERVICES_KEY": "your-key-guid",
+        "TDX_TICKETING_APP_ID": "431"
+      }
+    }
+  }
+}
+```
+
+### Claude Desktop (Docker stdio)
+
+```json
+{
+  "mcpServers": {
+    "teamdynamix": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "TDX_BASE_URL=https://yourschool.teamdynamix.com",
+        "-e", "TDX_BEID=your-beid-guid",
+        "-e", "TDX_WEB_SERVICES_KEY=your-key-guid",
+        "-e", "TDX_TICKETING_APP_ID=431",
+        "ghcr.io/chattstate/teamdynamix-mcp-server:latest"
+      ]
+    }
+  }
+}
+```
+
+### Cowork (HTTP transport)
+
+For Cowork deployments, the server runs in HTTP mode as a persistent service. The Cowork agent connects to the MCP server's HTTP endpoint.
+
+```bash
+docker run -d \
+  --name tdx-mcp \
+  -e TDX_BASE_URL=https://yourschool.teamdynamix.com \
+  -e TDX_BEID=your-beid-guid \
+  -e TDX_WEB_SERVICES_KEY=your-key-guid \
+  -e TDX_TICKETING_APP_ID=431 \
+  -e TDX_MCP_TRANSPORT=http \
+  -e TDX_MCP_HTTP_PORT=3000 \
+  -p 3000:3000 \
+  ghcr.io/chattstate/teamdynamix-mcp-server:latest
+```
+
+---
+
+# Technology Stack
+
+| Component | Technology | Justification |
+|---|---|---|
+| Runtime | Node.js 20 LTS | MCP TypeScript SDK is the reference implementation |
+| Language | TypeScript 5.x (strict mode) | Type safety, schema validation |
+| MCP SDK | `@modelcontextprotocol/sdk` | Official MCP TypeScript SDK |
+| HTTP Client | `undici` (built into Node.js) | Zero-dependency, high-performance HTTP |
+| Testing | Vitest | Fast, TypeScript-native test runner |
+| Linting | ESLint + typescript-eslint | Industry standard |
+| Build | `tsc` (direct compilation) | Simple, no bundler needed for server code |
+| Container | Docker (multi-stage) | Standard containerization |
+| CI/CD | GitHub Actions | Native to GitHub repository |
+| Package | npm (ESM) | Standard Node.js package format |
+
+---
+
+# Open Questions & Decisions Needed
+
+1. **Sandbox Instance** — Is there a TDX sandbox environment available for integration testing, or should we test only against production with read-only operations initially?
+
+2. **Application IDs** — What are the exact `appId` values for Chattanooga State's ticketing, KB, and assets applications? These are needed for default configuration.
+
+3. **Admin Account Permissions** — What permission scope does the existing admin service account have? Some operations (like workflow reassignment) require the admin account specifically.
+
+4. **Custom Attributes** — Does Chattanooga State use custom attributes on tickets, assets, or people? If so, the tool schemas need to be extended to support attribute read/write.
+
+5. **Multi-Institution Sharing** — Should the repository be under a personal GitHub org, a Chattanooga State org, or a TN HETC community org for broader adoption?
+
+6. **iPaaS Integration** — Should the MCP server also expose iPaaS workflow triggers, or keep it focused on the core TDX Web API?
+
+---
+
+# Summary
+
+This PRD defines a TeamDynamix MCP server with a decision tree-based lazy-loading architecture that makes the massive TDX API surface practical for AI consumption. The server supports both stdio and HTTP transports for use with Claude Desktop, Claude Code, and Cowork. Docker images are published to GitHub Container Registry, and the npm package is published to GitHub Packages.
+
+The phased approach delivers the highest-value capabilities first (ticketing and KB), with a clear path to comprehensive API coverage. The architecture is designed for adoption by peer institutions, aligning with the TN HETC collaborative model.
+
+Key architectural decisions — decision tree navigation, lazy loading, dual transport, rate limit awareness, and token lifecycle management — are driven by the specific constraints of the TDX API (rate limits, appId pattern, JWT expiry) and the MCP protocol (token budget, tool registration lifecycle).
