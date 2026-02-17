@@ -39,7 +39,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/chattstate/teamdynamix-mcp-server
+          images: ghcr.io/chatt-state/teamdynamix-mcp-server
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -65,7 +65,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
           registry-url: 'https://npm.pkg.github.com'
-          scope: '@chattstate'
+          scope: '@chatt-state'
       - run: npm ci
       - run: npm run build
       - run: npm publish

@@ -1,5 +1,5 @@
 {
-  "name": "@chattstate/teamdynamix-mcp-server",
+  "name": "@chatt-state/teamdynamix-mcp-server",
   "version": "0.1.0",
   "type": "module",
   "description": "MCP server for TeamDynamix Web API",
@@ -32,11 +32,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "github:chattstate/teamdynamix-mcp-server"
+    "url": "github:chatt-state/teamdynamix-mcp-server"
   },
-  "homepage": "https://github.com/chattstate/teamdynamix-mcp-server#readme",
+  "homepage": "https://github.com/chatt-state/teamdynamix-mcp-server#readme",
   "bugs": {
-    "url": "https://github.com/chattstate/teamdynamix-mcp-server/issues"
+    "url": "https://github.com/chatt-state/teamdynamix-mcp-server/issues"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com",

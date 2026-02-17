@@ -30,6 +30,6 @@ jobs:
         with:
           context: .
           push: false
-          tags: ghcr.io/chattstate/teamdynamix-mcp-server:test
+          tags: ghcr.io/chatt-state/teamdynamix-mcp-server:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
