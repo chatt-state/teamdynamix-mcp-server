@@ -9,6 +9,7 @@ import { TdxApiError } from "../http/client.js";
 
 /** MCP-formatted error response shape. */
 export interface McpErrorResponse {
+  [key: string]: unknown;
   content: Array<{ type: "text"; text: string }>;
   isError: true;
 }

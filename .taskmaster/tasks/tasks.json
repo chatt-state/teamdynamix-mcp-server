@@ -366,7 +366,7 @@
         "dependencies": [
           "6"
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -418,7 +418,7 @@
         "complexity": 6,
         "recommendedSubtasks": 4,
         "expansionPrompt": "Break into: 1) Core search/get tools, 2) CRUD operations (create/update/patch), 3) Feed/contacts/assets/tags/workflow management tools, 4) JSON schema definitions and appId handling.",
-        "updatedAt": "2026-02-17T18:53:42.529Z"
+        "updatedAt": "2026-02-17T18:58:41.199Z"
       },
       {
         "id": "8",
@@ -697,9 +697,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-02-17T18:53:42.530Z",
+      "lastModified": "2026-02-17T18:58:41.200Z",
       "taskCount": 12,
-      "completedCount": 6,
+      "completedCount": 7,
       "tags": [
         "master"
       ]
