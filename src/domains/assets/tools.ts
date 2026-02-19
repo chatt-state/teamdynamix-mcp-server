@@ -22,12 +22,6 @@ export function registerAssetTools(server: McpServer): void {
       description:
         "Search TeamDynamix assets. Returns summary data — use tdx_assets_get for full details.",
       inputSchema: {
-        appId: z
-          .number()
-          .int()
-          .positive()
-          .optional()
-          .describe("Assets app ID. Uses default if omitted."),
         searchText: z
           .string()
           .optional()
@@ -36,15 +30,6 @@ export function registerAssetTools(server: McpServer): void {
           .array(z.number().int())
           .optional()
           .describe("Filter by status IDs"),
-        customAttributes: z
-          .array(
-            z.object({
-              ID: z.number().int().describe("Custom attribute ID"),
-              Value: z.string().describe("Custom attribute value"),
-            }),
-          )
-          .optional()
-          .describe("Filter by custom attribute values"),
         maxResults: z
           .number()
           .int()
@@ -56,10 +41,8 @@ export function registerAssetTools(server: McpServer): void {
     async (args) => {
       return wrapToolHandler(async () => {
         const searchParams = {
-          appId: args.appId,
           SearchText: args.searchText,
           StatusIDs: args.statusIds,
-          CustomAttributes: args.customAttributes,
           MaxResults: args.maxResults,
         };
         const assets = await handlers.searchAssets(searchParams);
@@ -91,12 +74,6 @@ export function registerAssetTools(server: McpServer): void {
       description:
         "Get full asset details by ID including serial number, custom attributes, and attachments.",
       inputSchema: {
-        appId: z
-          .number()
-          .int()
-          .positive()
-          .optional()
-          .describe("Assets app ID. Uses default if omitted."),
         assetId: z
           .number()
           .int()
@@ -106,7 +83,7 @@ export function registerAssetTools(server: McpServer): void {
     },
     async (args) => {
       return wrapToolHandler(async () => {
-        const asset = await handlers.getAsset(args.assetId, args.appId);
+        const asset = await handlers.getAsset(args.assetId);
         return {
           content: [
             { type: "text" as const, text: JSON.stringify(asset, null, 2) },

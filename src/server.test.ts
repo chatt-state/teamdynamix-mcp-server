@@ -22,19 +22,6 @@ vi.mock("./config.js", () => ({
   })),
 }));
 
-vi.mock("./auth/token-manager.js", () => ({
-  tokenManager: {
-    isAuthenticated: vi.fn(() => false),
-    dispose: vi.fn(),
-  },
-}));
-
-vi.mock("./middleware/rate-limiter.js", () => ({
-  rateLimiter: {
-    getStatus: vi.fn(() => ({})),
-  },
-}));
-
 vi.mock("./domains/registry.js", () => ({
   DOMAIN_NAMES: [
     "tickets",

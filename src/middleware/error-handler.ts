@@ -5,7 +5,7 @@
  * tool handler errors, mapping TDX API errors to MCP error responses.
  */
 
-import { TdxApiError } from "../http/client.js";
+import { TdxApiError } from "@chatt-state/node-teamdynamix";
 
 /** MCP-formatted error response shape. */
 export interface McpErrorResponse {

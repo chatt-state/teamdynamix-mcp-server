@@ -13,7 +13,6 @@ import { mcpServer } from "./server.js";
 import { domainRegistry, type DomainName, DOMAIN_NAMES } from "./domains/registry.js";
 import { startStdioTransport } from "./transport/stdio.js";
 import { startHttpTransport } from "./transport/http.js";
-import { tokenManager } from "./auth/token-manager.js";
 
 /**
  * Checks whether a string is a valid DomainName.
@@ -52,7 +51,6 @@ async function main() {
   // Graceful shutdown
   const shutdown = async () => {
     console.error("Shutting down TeamDynamix MCP Server...");
-    tokenManager.dispose();
     await mcpServer.close();
     process.exit(0);
   };

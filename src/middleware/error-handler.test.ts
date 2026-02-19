@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { TdxApiError } from "../http/client.js";
+import { TdxApiError } from "@chatt-state/node-teamdynamix";
 import {
   formatMcpError,
   wrapToolHandler,
@@ -8,7 +8,7 @@ import {
 
 describe("formatMcpError", () => {
   it("should format TdxApiError with status and message", () => {
-    const error = new TdxApiError(404, "Not Found", "tickets", "Ticket not found");
+    const error = new TdxApiError(404, "Not Found", "Ticket not found", "tickets");
     const result = formatMcpError(error);
 
     expect(result.isError).toBe(true);
@@ -59,7 +59,7 @@ describe("wrapToolHandler", () => {
 
   it("should return MCP error response on TdxApiError", async () => {
     const result = await wrapToolHandler(() => {
-      throw new TdxApiError(500, "Internal Server Error", "tickets", "Server error");
+      throw new TdxApiError(500, "Internal Server Error", "Server error", "tickets");
     });
 
     const errorResult = result as McpErrorResponse;

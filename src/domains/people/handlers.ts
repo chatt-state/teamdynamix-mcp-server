@@ -3,30 +3,29 @@
  *
  * Contains the business logic that executes when people-related
  * MCP tools are invoked by the client. Each handler calls the
- * TDX API via tdxClient and returns typed results.
+ * TDX API via the shared TdxClient and returns typed results.
  *
  * Note: People endpoints are global and do NOT use an appId prefix.
  */
 
-import { tdxClient } from "../../http/client.js";
-import type { TdxPerson, PeopleSearchParams } from "./types.js";
+import { getTdxClient } from "../../tdx-client.js";
+import type {
+  Person,
+  PersonSearch,
+} from "@chatt-state/node-teamdynamix";
 
 /**
  * Searches for people matching the given parameters.
- * Posts search criteria to the global `/people/search` endpoint.
  */
 export async function searchPeople(
-  params: PeopleSearchParams,
-): Promise<TdxPerson[]> {
-  return tdxClient.post<TdxPerson[]>("/people/search", params);
+  params: PersonSearch,
+): Promise<Person[]> {
+  return getTdxClient().people.search(params);
 }
 
 /**
- * Retrieves a single person by UID or username.
- * Uses the global `/people/{uidOrUsername}` endpoint.
+ * Retrieves a single person by UID.
  */
-export async function getPerson(
-  uidOrUsername: string,
-): Promise<TdxPerson> {
-  return tdxClient.get<TdxPerson>(`/people/${uidOrUsername}`);
+export async function getPerson(uid: string): Promise<Person> {
+  return getTdxClient().people.get(uid);
 }

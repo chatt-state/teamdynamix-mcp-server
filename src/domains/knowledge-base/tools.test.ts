@@ -4,18 +4,14 @@ import { registerKbTools } from "./tools.js";
 
 /**
  * Mock handler dependencies so tool registration does not
- * require a real HTTP client or config.
+ * require a real TdxClient.
  */
-vi.mock("../../http/client.js", () => ({
-  tdxClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
-}));
-
-vi.mock("../../config.js", () => ({
-  getConfig: vi.fn(() => ({
-    kbAppId: 50,
+vi.mock("../../tdx-client.js", () => ({
+  getTdxClient: vi.fn(() => ({
+    knowledgeBase: {
+      search: vi.fn(),
+      get: vi.fn(),
+    },
   })),
 }));
 

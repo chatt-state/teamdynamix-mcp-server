@@ -22,27 +22,19 @@ export function registerKbTools(server: McpServer): void {
       description:
         "Search TeamDynamix knowledge base articles. Returns summary data — use tdx_kb_get_article for full details including body, attachments, and attributes.",
       inputSchema: {
-        appId: z
-          .number()
-          .int()
-          .positive()
-          .optional()
-          .describe("KB app ID. Uses default if omitted."),
         searchText: z
           .string()
           .optional()
           .describe("Free-text search across article fields"),
-        categoryId: z
-          .number()
-          .int()
+        isPublished: z
+          .boolean()
           .optional()
-          .describe("Filter by category ID"),
-        status: z
-          .number()
-          .int()
+          .describe("Filter by published status"),
+        isPublic: z
+          .boolean()
           .optional()
-          .describe("Filter by status value"),
-        returnCount: z
+          .describe("Filter by public status"),
+        maxResults: z
           .number()
           .int()
           .positive()
@@ -53,11 +45,10 @@ export function registerKbTools(server: McpServer): void {
     async (args) => {
       return wrapToolHandler(async () => {
         const searchParams = {
-          appId: args.appId,
           SearchText: args.searchText,
-          CategoryID: args.categoryId,
-          Status: args.status,
-          ReturnCount: args.returnCount,
+          IsPublished: args.isPublished,
+          IsPublic: args.isPublic,
+          MaxResults: args.maxResults,
         };
         const articles = await handlers.searchArticles(searchParams);
         const summary = articles
@@ -88,12 +79,6 @@ export function registerKbTools(server: McpServer): void {
       description:
         "Get full knowledge base article details by ID including body, custom attributes, tags, and attachments.",
       inputSchema: {
-        appId: z
-          .number()
-          .int()
-          .positive()
-          .optional()
-          .describe("KB app ID. Uses default if omitted."),
         articleId: z
           .number()
           .int()
@@ -103,7 +88,7 @@ export function registerKbTools(server: McpServer): void {
     },
     async (args) => {
       return wrapToolHandler(async () => {
-        const article = await handlers.getArticle(args.articleId, args.appId);
+        const article = await handlers.getArticle(args.articleId);
         return {
           content: [
             { type: "text" as const, text: JSON.stringify(article, null, 2) },

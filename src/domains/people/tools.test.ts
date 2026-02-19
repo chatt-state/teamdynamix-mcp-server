@@ -4,13 +4,15 @@ import { registerPeopleTools } from "./tools.js";
 
 /**
  * Mock handler dependencies so tool registration does not
- * require a real HTTP client or config.
+ * require a real TdxClient.
  */
-vi.mock("../../http/client.js", () => ({
-  tdxClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
+vi.mock("../../tdx-client.js", () => ({
+  getTdxClient: vi.fn(() => ({
+    people: {
+      search: vi.fn(),
+      get: vi.fn(),
+    },
+  })),
 }));
 
 /** Helper to access the private _registeredTools record on McpServer. */

@@ -8,8 +8,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getConfig } from "./config.js";
-import { tokenManager } from "./auth/token-manager.js";
-import { rateLimiter } from "./middleware/rate-limiter.js";
 import { domainRegistry, DOMAIN_NAMES } from "./domains/registry.js";
 
 /** Create and export the McpServer instance. */
@@ -80,14 +78,12 @@ mcpServer.registerTool(
   async () => {
     const config = getConfig();
     const status = {
-      authenticated: tokenManager.isAuthenticated(),
       loadedDomains: domainRegistry.getLoadedDomains(),
       configuredApps: {
         ticketing: config.ticketingAppId ?? null,
         assets: config.assetsAppId ?? null,
         kb: config.kbAppId ?? null,
       },
-      rateLimits: rateLimiter.getStatus(),
     };
 
     return {

@@ -77,16 +77,16 @@ export function registerPeopleTools(server: McpServer): void {
     {
       title: "Get Person",
       description:
-        "Get full person details by UID or username including contact info, attributes, and role.",
+        "Get full person details by UID including contact info, attributes, and role.",
       inputSchema: {
-        uidOrUsername: z
+        uid: z
           .string()
-          .describe("The person UID (GUID) or username to retrieve"),
+          .describe("The person UID (GUID) to retrieve"),
       },
     },
     async (args) => {
       return wrapToolHandler(async () => {
-        const person = await handlers.getPerson(args.uidOrUsername);
+        const person = await handlers.getPerson(args.uid);
         return {
           content: [
             { type: "text" as const, text: JSON.stringify(person, null, 2) },

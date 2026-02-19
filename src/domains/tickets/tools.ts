@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { TicketCreateParams, TicketUpdateParams } from "@chatt-state/node-teamdynamix";
 import { wrapToolHandler } from "../../middleware/error-handler.js";
 import * as handlers from "./handlers.js";
 
@@ -22,12 +23,6 @@ export function registerTicketTools(server: McpServer): void {
       description:
         "Search TeamDynamix tickets. Returns summary data — use tdx_tickets_get for full details.",
       inputSchema: {
-        appId: z
-          .number()
-          .int()
-          .positive()
-          .optional()
-          .describe("Ticketing app ID. Uses default if omitted."),
         searchText: z
           .string()
           .optional()
@@ -44,10 +39,6 @@ export function registerTicketTools(server: McpServer): void {
           .array(z.number().int())
           .optional()
           .describe("Filter by type IDs"),
-        responsibilityUids: z
-          .array(z.string())
-          .optional()
-          .describe("Filter by responsible person UIDs"),
         responsibilityGroupIds: z
           .array(z.number().int())
           .optional()
@@ -56,14 +47,6 @@ export function registerTicketTools(server: McpServer): void {
           .array(z.string())
           .optional()
           .describe("Filter by requestor UIDs"),
-        createdDateFrom: z
-          .string()
-          .optional()
-          .describe("ISO 8601 date — tickets created on or after"),
-        createdDateTo: z
-          .string()
-          .optional()
-          .describe("ISO 8601 date — tickets created on or before"),
         maxResults: z
           .number()
           .int()
@@ -75,16 +58,12 @@ export function registerTicketTools(server: McpServer): void {
     async (args) => {
       return wrapToolHandler(async () => {
         const searchParams = {
-          appId: args.appId,
           SearchText: args.searchText,
           StatusIDs: args.statusIds,
           PriorityIDs: args.priorityIds,
           TypeIDs: args.typeIds,
-          ResponsibilityUids: args.responsibilityUids,
-          ResponsibilityGroupIDs: args.responsibilityGroupIds,
+          ResponsibleGroupIDs: args.responsibilityGroupIds,
           RequestorUids: args.requestorUids,
-          CreatedDateFrom: args.createdDateFrom,
-          CreatedDateTo: args.createdDateTo,
           MaxResults: args.maxResults,
         };
         const tickets = await handlers.searchTickets(searchParams);
@@ -116,12 +95,6 @@ export function registerTicketTools(server: McpServer): void {
       description:
         "Get full ticket details by ID including description, custom attributes, and attachments.",
       inputSchema: {
-        appId: z
-          .number()
-          .int()
-          .positive()
-          .optional()
-          .describe("Ticketing app ID. Uses default if omitted."),
         ticketId: z
           .number()
           .int()
@@ -131,7 +104,7 @@ export function registerTicketTools(server: McpServer): void {
     },
     async (args) => {
       return wrapToolHandler(async () => {
-        const ticket = await handlers.getTicket(args.ticketId, args.appId);
+        const ticket = await handlers.getTicket(args.ticketId);
         return {
           content: [
             { type: "text" as const, text: JSON.stringify(ticket, null, 2) },
@@ -147,12 +120,6 @@ export function registerTicketTools(server: McpServer): void {
       title: "Create Ticket",
       description: "Create a new TeamDynamix ticket.",
       inputSchema: {
-        appId: z
-          .number()
-          .int()
-          .positive()
-          .optional()
-          .describe("Ticketing app ID"),
         title: z.string().describe("Ticket title"),
         description: z
           .string()
@@ -187,7 +154,6 @@ export function registerTicketTools(server: McpServer): void {
     async (args) => {
       return wrapToolHandler(async () => {
         const {
-          appId,
           title,
           description,
           typeId,
@@ -201,25 +167,21 @@ export function registerTicketTools(server: McpServer): void {
           sourceId,
           formId,
         } = args;
-        const ticketData: Record<string, unknown> = {
+        const ticketData: TicketCreateParams = {
           Title: title,
-          Description: description,
           TypeID: typeId,
-          StatusID: statusId,
-          PriorityID: priorityId,
-          AccountID: accountId,
+          AccountID: accountId ?? 0,
+          StatusID: statusId ?? 0,
+          PriorityID: priorityId ?? 0,
+          RequestorUid: requestorUid ?? "",
+          Description: description,
           RequestorEmail: requestorEmail,
-          RequestorUid: requestorUid,
           ResponsibleUid: responsibleUid,
           ResponsibleGroupID: responsibleGroupId,
           SourceID: sourceId,
           FormID: formId,
         };
-        // Remove undefined values so only provided fields are sent
-        for (const key of Object.keys(ticketData)) {
-          if (ticketData[key] === undefined) delete ticketData[key];
-        }
-        const ticket = await handlers.createTicket(ticketData, appId);
+        const ticket = await handlers.createTicket(ticketData);
         return {
           content: [
             {
@@ -238,7 +200,6 @@ export function registerTicketTools(server: McpServer): void {
       title: "Update Ticket",
       description: "Update an existing TeamDynamix ticket (full update).",
       inputSchema: {
-        appId: z.number().int().positive().optional(),
         ticketId: z
           .number()
           .int()
@@ -255,8 +216,8 @@ export function registerTicketTools(server: McpServer): void {
     },
     async (args) => {
       return wrapToolHandler(async () => {
-        const { appId, ticketId, ...fields } = args;
-        const updateData: Record<string, unknown> = {};
+        const { ticketId, ...fields } = args;
+        const updateData: TicketUpdateParams = {};
         if (fields.title !== undefined) updateData.Title = fields.title;
         if (fields.description !== undefined)
           updateData.Description = fields.description;
@@ -269,7 +230,7 @@ export function registerTicketTools(server: McpServer): void {
           updateData.ResponsibleUid = fields.responsibleUid;
         if (fields.responsibleGroupId !== undefined)
           updateData.ResponsibleGroupID = fields.responsibleGroupId;
-        const ticket = await handlers.updateTicket(ticketId, updateData, appId);
+        const ticket = await handlers.updateTicket(ticketId, updateData);
         return {
           content: [
             {

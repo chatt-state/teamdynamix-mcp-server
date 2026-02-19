@@ -4,18 +4,16 @@ import { registerTicketTools } from "./tools.js";
 
 /**
  * Mock handler dependencies so tool registration does not
- * require a real HTTP client or config.
+ * require a real TdxClient.
  */
-vi.mock("../../http/client.js", () => ({
-  tdxClient: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
-}));
-
-vi.mock("../../config.js", () => ({
-  getConfig: vi.fn(() => ({
-    ticketingAppId: 431,
+vi.mock("../../tdx-client.js", () => ({
+  getTdxClient: vi.fn(() => ({
+    tickets: {
+      search: vi.fn(),
+      get: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
   })),
 }));
 
