@@ -2,6 +2,8 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 
 export default defineConfig({
+  site: "https://chatt-state.github.io",
+  base: "/teamdynamix-mcp-server",
   integrations: [
     starlight({
       title: "TeamDynamix MCP Server",
