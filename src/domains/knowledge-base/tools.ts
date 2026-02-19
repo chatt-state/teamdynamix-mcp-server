@@ -97,4 +97,88 @@ export function registerKbTools(server: McpServer): void {
       });
     },
   );
+
+  server.registerTool(
+    "tdx_kb_create_article",
+    {
+      title: "Create KB Article",
+      description:
+        "Create a new knowledge base article. Use tdx_kb_get_categories first to find a valid CategoryID.",
+      inputSchema: {
+        title: z.string().describe("Article title"),
+        body: z.string().describe("Article body content (HTML supported)"),
+        categoryId: z
+          .number()
+          .int()
+          .describe("Category ID — use tdx_kb_get_categories to find valid IDs"),
+        summary: z.string().optional().describe("Short summary of the article"),
+        isPublished: z
+          .boolean()
+          .optional()
+          .describe("Whether to publish immediately (default: false)"),
+        isPublic: z
+          .boolean()
+          .optional()
+          .describe("Whether the article is publicly visible"),
+        order: z
+          .number()
+          .int()
+          .optional()
+          .describe("Display order within the category"),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const article = await handlers.createArticle({
+          Title: args.title,
+          Body: args.body,
+          CategoryID: args.categoryId,
+          Summary: args.summary,
+          IsPublished: args.isPublished,
+          IsPublic: args.isPublic,
+          Order: args.order,
+        });
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Created KB article #${article.ID}: "${article.Title}" (${article.IsPublished ? "Published" : "Draft"})\n\n${JSON.stringify(article, null, 2)}`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_kb_get_categories",
+    {
+      title: "Get KB Categories",
+      description:
+        "List all knowledge base categories. Use this to find CategoryID values when creating articles.",
+      inputSchema: {},
+    },
+    async () => {
+      return wrapToolHandler(async () => {
+        const categories = await handlers.getCategories();
+        const summary = categories
+          .map(
+            (c) =>
+              `#${c.ID} ${c.Name}${c.ParentID ? ` (parent: ${c.ParentID})` : ""}${c.Description ? ` — ${c.Description}` : ""}`,
+          )
+          .join("\n");
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text:
+                categories.length === 0
+                  ? "No KB categories found."
+                  : `Found ${categories.length} category/categories:\n\n${summary}`,
+            },
+          ],
+        };
+      });
+    },
+  );
 }

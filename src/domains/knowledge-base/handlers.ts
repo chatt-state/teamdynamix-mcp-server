@@ -10,6 +10,8 @@ import { getTdxClient } from "../../tdx-client.js";
 import type {
   KBArticle,
   KBArticleSearch,
+  KBArticleCreateParams,
+  KBCategory,
 } from "@chatt-state/node-teamdynamix";
 
 /**
@@ -24,4 +26,16 @@ export async function searchArticles(
 /** Retrieves a single KB article by its ID. */
 export async function getArticle(articleId: number): Promise<KBArticle> {
   return getTdxClient().knowledgeBase.get(articleId);
+}
+
+/** Creates a new KB article. */
+export async function createArticle(
+  params: KBArticleCreateParams,
+): Promise<KBArticle> {
+  return getTdxClient().knowledgeBase.create(params);
+}
+
+/** Lists all KB categories. */
+export async function getCategories(): Promise<KBCategory[]> {
+  return getTdxClient().knowledgeBase.getCategories();
 }

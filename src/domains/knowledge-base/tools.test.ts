@@ -11,6 +11,8 @@ vi.mock("../../tdx-client.js", () => ({
     knowledgeBase: {
       search: vi.fn(),
       get: vi.fn(),
+      create: vi.fn(),
+      getCategories: vi.fn(),
     },
   })),
 }));
@@ -24,7 +26,7 @@ function getRegisteredTools(
 }
 
 describe("knowledge base tools registration", () => {
-  it("should register both KB tools", () => {
+  it("should register all KB tools", () => {
     const server = new McpServer({
       name: "test-server",
       version: "0.0.1",
@@ -36,9 +38,11 @@ describe("knowledge base tools registration", () => {
 
     expect("tdx_kb_search" in registeredTools).toBe(true);
     expect("tdx_kb_get_article" in registeredTools).toBe(true);
+    expect("tdx_kb_create_article" in registeredTools).toBe(true);
+    expect("tdx_kb_get_categories" in registeredTools).toBe(true);
   });
 
-  it("should register exactly 2 KB tools", () => {
+  it("should register exactly 4 KB tools", () => {
     const server = new McpServer({
       name: "test-server",
       version: "0.0.1",
@@ -51,7 +55,7 @@ describe("knowledge base tools registration", () => {
     const kbTools = Object.keys(registeredTools).filter((name) =>
       name.startsWith("tdx_kb_"),
     );
-    expect(kbTools).toHaveLength(2);
+    expect(kbTools).toHaveLength(4);
   });
 
   it("should match the expected tool names from the domain registry", () => {
@@ -64,7 +68,12 @@ describe("knowledge base tools registration", () => {
 
     const registeredTools = getRegisteredTools(server);
 
-    const expectedNames = ["tdx_kb_search", "tdx_kb_get_article"];
+    const expectedNames = [
+      "tdx_kb_search",
+      "tdx_kb_get_article",
+      "tdx_kb_create_article",
+      "tdx_kb_get_categories",
+    ];
 
     for (const name of expectedNames) {
       expect(name in registeredTools).toBe(true);
