@@ -9,6 +9,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { TicketCreateParams, TicketUpdateParams } from "@chatt-state/node-teamdynamix";
 import { wrapToolHandler } from "../../middleware/error-handler.js";
+import { elicitChoice } from "../../middleware/elicitation.js";
 import * as handlers from "./handlers.js";
 
 /**
@@ -125,7 +126,11 @@ export function registerTicketTools(server: McpServer): void {
           .string()
           .optional()
           .describe("Ticket description (HTML supported)"),
-        typeId: z.number().int().describe("Ticket type ID"),
+        typeId: z
+          .number()
+          .int()
+          .optional()
+          .describe("Ticket type ID — omit to select interactively"),
         statusId: z.number().int().optional().describe("Status ID"),
         priorityId: z.number().int().optional().describe("Priority ID"),
         accountId: z
@@ -153,10 +158,33 @@ export function registerTicketTools(server: McpServer): void {
     },
     async (args) => {
       return wrapToolHandler(async () => {
+        let resolvedTypeId: number;
+        if (args.typeId !== undefined) {
+          resolvedTypeId = args.typeId;
+        } else {
+          const types = await handlers.getTicketTypes();
+          const selected = await elicitChoice(
+            "Select a ticket type:",
+            "typeId",
+            "Ticket Type",
+            types.map((t) => ({ id: t.ID, name: t.Name })),
+          );
+          if (selected === null) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: "Ticket type selection is required. Provide typeId or try again.",
+                },
+              ],
+              isError: true as const,
+            };
+          }
+          resolvedTypeId = selected;
+        }
         const {
           title,
           description,
-          typeId,
           statusId,
           priorityId,
           accountId,
@@ -169,7 +197,7 @@ export function registerTicketTools(server: McpServer): void {
         } = args;
         const ticketData: TicketCreateParams = {
           Title: title,
-          TypeID: typeId,
+          TypeID: resolvedTypeId,
           AccountID: accountId ?? 0,
           StatusID: statusId ?? 0,
           PriorityID: priorityId ?? 0,

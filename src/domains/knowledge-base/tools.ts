@@ -8,6 +8,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { wrapToolHandler } from "../../middleware/error-handler.js";
+import { elicitChoice } from "../../middleware/elicitation.js";
 import * as handlers from "./handlers.js";
 
 /**
@@ -110,7 +111,8 @@ export function registerKbTools(server: McpServer): void {
         categoryId: z
           .number()
           .int()
-          .describe("Category ID — use tdx_kb_get_categories to find valid IDs"),
+          .optional()
+          .describe("Category ID — omit to select interactively, or use tdx_kb_get_categories to find valid IDs"),
         summary: z.string().optional().describe("Short summary of the article"),
         isPublished: z
           .boolean()
@@ -129,10 +131,34 @@ export function registerKbTools(server: McpServer): void {
     },
     async (args) => {
       return wrapToolHandler(async () => {
+        let resolvedCategoryId: number;
+        if (args.categoryId !== undefined) {
+          resolvedCategoryId = args.categoryId;
+        } else {
+          const categories = await handlers.getCategories();
+          const selected = await elicitChoice(
+            "Select a category for the new KB article:",
+            "categoryId",
+            "Category",
+            categories.map((c) => ({ id: c.ID, name: c.Name })),
+          );
+          if (selected === null) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: "Category selection is required. Provide categoryId or use tdx_kb_get_categories to find valid IDs.",
+                },
+              ],
+              isError: true as const,
+            };
+          }
+          resolvedCategoryId = selected;
+        }
         const article = await handlers.createArticle({
           Title: args.title,
           Body: args.body,
-          CategoryID: args.categoryId,
+          CategoryID: resolvedCategoryId,
           Summary: args.summary,
           IsPublished: args.isPublished,
           IsPublic: args.isPublic,

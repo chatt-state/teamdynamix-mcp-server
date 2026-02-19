@@ -49,6 +49,8 @@ const DOMAIN_TOOLS: Record<DomainName, string[]> = {
   knowledge_base: [
     "tdx_kb_search",
     "tdx_kb_get_article",
+    "tdx_kb_create_article",
+    "tdx_kb_get_categories",
   ],
   people: [
     "tdx_people_search",
@@ -57,6 +59,7 @@ const DOMAIN_TOOLS: Record<DomainName, string[]> = {
   assets: [
     "tdx_assets_search",
     "tdx_assets_get",
+    "tdx_assets_create",
   ],
   projects: [],
   reports: [],

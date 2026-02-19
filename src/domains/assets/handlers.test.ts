@@ -6,6 +6,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockAssets = {
   search: vi.fn(),
   get: vi.fn(),
+  create: vi.fn(),
+  getStatuses: vi.fn(),
+  getForms: vi.fn(),
 };
 
 vi.mock("../../tdx-client.js", () => ({
@@ -14,7 +17,13 @@ vi.mock("../../tdx-client.js", () => ({
   })),
 }));
 
-import { searchAssets, getAsset } from "./handlers.js";
+import {
+  searchAssets,
+  getAsset,
+  createAsset,
+  getAssetStatuses,
+  getAssetForms,
+} from "./handlers.js";
 
 describe("asset handlers", () => {
   beforeEach(() => {
@@ -57,6 +66,43 @@ describe("asset handlers", () => {
 
       expect(mockAssets.get).toHaveBeenCalledWith(42);
       expect(result).toEqual(mockAsset);
+    });
+  });
+
+  describe("createAsset", () => {
+    it("should call the library client with asset params", async () => {
+      const params = { Name: "New Laptop", StatusID: 1, FormID: 10 };
+      const mockResult = { ID: 99, ...params };
+      mockAssets.create.mockResolvedValue(mockResult);
+
+      const result = await createAsset(params);
+
+      expect(mockAssets.create).toHaveBeenCalledWith(params);
+      expect(result).toEqual(mockResult);
+    });
+  });
+
+  describe("getAssetStatuses", () => {
+    it("should return statuses from the library client", async () => {
+      const statuses = [{ ID: 1, Name: "In Use", IsActive: true }];
+      mockAssets.getStatuses.mockResolvedValue(statuses);
+
+      const result = await getAssetStatuses();
+
+      expect(mockAssets.getStatuses).toHaveBeenCalled();
+      expect(result).toEqual(statuses);
+    });
+  });
+
+  describe("getAssetForms", () => {
+    it("should return forms from the library client", async () => {
+      const forms = [{ ID: 10, Name: "Laptop Form", IsActive: true }];
+      mockAssets.getForms.mockResolvedValue(forms);
+
+      const result = await getAssetForms();
+
+      expect(mockAssets.getForms).toHaveBeenCalled();
+      expect(result).toEqual(forms);
     });
   });
 });

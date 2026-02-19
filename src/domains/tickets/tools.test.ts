@@ -13,8 +13,15 @@ vi.mock("../../tdx-client.js", () => ({
       get: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      getTypes: vi.fn(),
+      getStatuses: vi.fn(),
+      getPriorities: vi.fn(),
     },
   })),
+}));
+
+vi.mock("../../middleware/elicitation.js", () => ({
+  elicitChoice: vi.fn(),
 }));
 
 /** Helper to access the private _registeredTools record on McpServer. */

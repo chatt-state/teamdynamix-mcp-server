@@ -10,6 +10,9 @@ const mockTickets = {
   update: vi.fn(),
   getFeed: vi.fn(),
   addFeedEntry: vi.fn(),
+  getTypes: vi.fn(),
+  getStatuses: vi.fn(),
+  getPriorities: vi.fn(),
 };
 
 vi.mock("../../tdx-client.js", () => ({
@@ -25,6 +28,9 @@ import {
   updateTicket,
   getTicketFeed,
   addTicketFeedEntry,
+  getTicketTypes,
+  getTicketStatuses,
+  getTicketPriorities,
 } from "./handlers.js";
 
 describe("ticket handlers", () => {
@@ -117,6 +123,42 @@ describe("ticket handlers", () => {
 
       expect(mockTickets.addFeedEntry).toHaveBeenCalledWith(42, entry);
       expect(result).toEqual(mockEntry);
+    });
+  });
+
+  describe("getTicketTypes", () => {
+    it("should return types from the library client", async () => {
+      const types = [{ ID: 1, Name: "Incident", IsActive: true }];
+      mockTickets.getTypes.mockResolvedValue(types);
+
+      const result = await getTicketTypes();
+
+      expect(mockTickets.getTypes).toHaveBeenCalled();
+      expect(result).toEqual(types);
+    });
+  });
+
+  describe("getTicketStatuses", () => {
+    it("should return statuses from the library client", async () => {
+      const statuses = [{ ID: 1, Name: "New", IsActive: true }];
+      mockTickets.getStatuses.mockResolvedValue(statuses);
+
+      const result = await getTicketStatuses();
+
+      expect(mockTickets.getStatuses).toHaveBeenCalled();
+      expect(result).toEqual(statuses);
+    });
+  });
+
+  describe("getTicketPriorities", () => {
+    it("should return priorities from the library client", async () => {
+      const priorities = [{ ID: 1, Name: "High", IsActive: true }];
+      mockTickets.getPriorities.mockResolvedValue(priorities);
+
+      const result = await getTicketPriorities();
+
+      expect(mockTickets.getPriorities).toHaveBeenCalled();
+      expect(result).toEqual(priorities);
     });
   });
 });

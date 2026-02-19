@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- MCP elicitation support for interactive form-based ID selection
+- `elicitChoice()` helper in `src/middleware/elicitation.ts` for dropdown selection forms
+- `tdx_assets_create` tool with elicitation for status and form selection
+- Ticket type elicitation in `tdx_tickets_create` (typeId now optional)
+- KB category elicitation in `tdx_kb_create_article` (categoryId now optional)
+- Ticket picklist handlers: `getTicketTypes()`, `getTicketStatuses()`, `getTicketPriorities()`
+- Asset picklist handlers: `getAssetStatuses()`, `getAssetForms()`, `createAsset()`
+
+### Changed
+
+- Docs theme updated from ChattState brand colors to dark-first developer-focused style (mcp.wyretechnology.com)
+- Domain registry: KB domain now includes `tdx_kb_create_article` and `tdx_kb_get_categories`; assets domain includes `tdx_assets_create`
 - README.md with installation, configuration, and usage documentation
 - Astro Starlight documentation site (`docs/`) with Chattanooga State brand theme
 - Documentation pages: getting started, guides (Claude, Docker), reference (tools, environment)

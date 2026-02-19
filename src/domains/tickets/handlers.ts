@@ -12,6 +12,9 @@ import type {
   TicketSearch,
   TicketCreateParams,
   TicketUpdateParams,
+  TicketType,
+  TicketStatus,
+  TicketPriority,
   FeedEntry,
 } from "@chatt-state/node-teamdynamix";
 
@@ -47,6 +50,21 @@ export async function updateTicket(
 /** Retrieves the activity feed for a ticket. */
 export async function getTicketFeed(ticketId: number): Promise<FeedEntry[]> {
   return getTdxClient().tickets.getFeed(ticketId);
+}
+
+/** Fetches all ticket types for the configured application. */
+export async function getTicketTypes(): Promise<TicketType[]> {
+  return getTdxClient().tickets.getTypes();
+}
+
+/** Fetches all ticket statuses for the configured application. */
+export async function getTicketStatuses(): Promise<TicketStatus[]> {
+  return getTdxClient().tickets.getStatuses();
+}
+
+/** Fetches all ticket priorities for the configured application. */
+export async function getTicketPriorities(): Promise<TicketPriority[]> {
+  return getTdxClient().tickets.getPriorities();
 }
 
 /** Adds a new feed entry (comment) to a ticket. */
