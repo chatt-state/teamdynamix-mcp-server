@@ -14,11 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ESLint flat config with TypeScript rules
 - Prettier configuration for consistent code formatting
 - Configuration management with Zod v4 schema validation and environment variable loading
-- JWT authentication via `TokenManager` with automatic refresh and token lifecycle management
-- HTTP client (`TdxHttpClient`) with per-endpoint rate limiting and retry support
+- Shared `TdxClient` singleton (`src/tdx-client.ts`) wrapping `@chatt-state/node-teamdynamix` library
 - MCP server setup with dual transport support (stdio and HTTP/SSE)
 - Error handler middleware for consistent MCP error responses
-- Rate limiter middleware with sliding-window algorithm
+### Changed
+
+- Replaced custom HTTP client, token manager, and rate limiter with `@chatt-state/node-teamdynamix` library (-2,400 lines)
+- Domain handlers now delegate to the shared TdxClient instead of raw HTTP calls
 - Decision tree navigator tools (`tdx_navigate`, `tdx_status`) for guided tool discovery
 - Domain registry with lazy loading for on-demand tool registration
 - Tickets domain: `tdx_tickets_search`, `tdx_tickets_get`, `tdx_tickets_create`, `tdx_tickets_update`
