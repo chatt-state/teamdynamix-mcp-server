@@ -1,0 +1,33 @@
+---
+title: TeamDynamix MCP Server
+description: Connect AI assistants to your TeamDynamix instance
+template: splash
+hero:
+  tagline: Search tickets, KB articles, people, and assets through Claude using the Model Context Protocol.
+  actions:
+    - text: Get Started
+      link: /getting-started/introduction/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/chatt-state/teamdynamix-mcp-server
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <Card title="Quick setup" icon="rocket">
+    Add one JSON block to your Claude config and you're connected to TeamDynamix.
+  </Card>
+  <Card title="12 tools, 4 domains" icon="puzzle">
+    Tickets, Knowledge Base, People, and Assets — loaded on demand.
+  </Card>
+  <Card title="Smart loading" icon="magnifier">
+    Decision-tree pattern keeps the tool footprint small until you need it.
+  </Card>
+  <Card title="Run anywhere" icon="laptop">
+    npm, Docker, or Docker MCP Gateway — your choice.
+  </Card>
+</CardGrid>

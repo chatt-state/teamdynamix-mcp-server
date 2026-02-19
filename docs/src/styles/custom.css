@@ -1,0 +1,87 @@
+/* Chattanooga State Community College brand theme
+ * Primary: Pantone 293 Blue #00528b
+ * Accent:  Pantone 021 Orange #FF6900
+ * Text:    #313131
+ * Fonts:   Open Sans (body), Roboto Slab (headings)
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Roboto+Slab:wght@400;700&display=swap");
+
+:root {
+  --sl-font: "Open Sans", sans-serif;
+  --sl-font-system: "Open Sans", sans-serif;
+
+  --sl-color-accent-low: #002d4d;
+  --sl-color-accent: #00528b;
+  --sl-color-accent-high: #3d8ec4;
+
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #f5f6f8;
+  --sl-color-gray-2: #e1e4e8;
+  --sl-color-gray-3: #a0a8b4;
+  --sl-color-gray-4: #6b7280;
+  --sl-color-gray-5: #313131;
+  --sl-color-gray-6: #1a1a1a;
+  --sl-color-black: #0d0d0d;
+
+  --sl-color-text: #313131;
+  --sl-color-text-accent: #00528b;
+}
+
+:root[data-theme="dark"] {
+  --sl-color-accent-low: #0a3a5e;
+  --sl-color-accent: #3d8ec4;
+  --sl-color-accent-high: #8fc4e8;
+
+  --sl-color-text: #e1e4e8;
+  --sl-color-text-accent: #8fc4e8;
+}
+
+/* Headings in Roboto Slab */
+h1, h2, h3, h4, h5, h6,
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3 {
+  font-family: "Roboto Slab", serif;
+}
+
+/* Orange accent for links and highlights */
+.sl-markdown-content a:not([class]) {
+  color: #00528b;
+  text-decoration-color: #FF6900;
+}
+
+.sl-markdown-content a:not([class]):hover {
+  color: #FF6900;
+}
+
+:root[data-theme="dark"] .sl-markdown-content a:not([class]) {
+  color: #8fc4e8;
+  text-decoration-color: #FF6900;
+}
+
+:root[data-theme="dark"] .sl-markdown-content a:not([class]):hover {
+  color: #FF6900;
+}
+
+/* Hero section accent */
+.hero .action.primary {
+  background-color: #00528b;
+  border-color: #00528b;
+}
+
+.hero .action.primary:hover {
+  background-color: #FF6900;
+  border-color: #FF6900;
+}
+
+/* Sidebar active state with orange indicator */
+nav[aria-label="Main"] a[aria-current="page"] {
+  border-color: #FF6900;
+  color: #00528b;
+}
+
+:root[data-theme="dark"] nav[aria-label="Main"] a[aria-current="page"] {
+  color: #8fc4e8;
+  border-color: #FF6900;
+}

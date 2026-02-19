@@ -1,0 +1,79 @@
+---
+title: Docker Deployment
+description: Run the TeamDynamix MCP Server with Docker
+sidebar:
+  order: 2
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+## Docker image
+
+The server is published to GitHub Container Registry:
+
+```
+ghcr.io/chatt-state/teamdynamix-mcp-server:latest
+```
+
+Tags follow semver: `0.1.0`, `0.1`, `latest`.
+
+## Running directly
+
+```bash
+docker run --rm -i \
+  -e TDX_BASE_URL=https://yourinstance.teamdynamix.com \
+  -e TDX_BEID=your-beid-guid \
+  -e TDX_WEB_SERVICES_KEY=your-web-services-key \
+  ghcr.io/chatt-state/teamdynamix-mcp-server:latest
+```
+
+## Docker MCP Gateway
+
+The image includes `io.docker.server.metadata` labels for auto-discovery by Docker Desktop's MCP Gateway.
+
+### Setup
+
+```bash
+# Enable the server
+docker mcp server enable teamdynamix-mcp-server \
+  --image ghcr.io/chatt-state/teamdynamix-mcp-server:latest
+
+# Set secrets
+docker mcp secret set TDX_BASE_URL
+docker mcp secret set TDX_BEID
+docker mcp secret set TDX_WEB_SERVICES_KEY
+
+# Verify
+docker mcp server ls
+```
+
+### Connect to a client
+
+```bash
+docker mcp client connect claude-code
+```
+
+## Building from source
+
+```bash
+git clone https://github.com/chatt-state/teamdynamix-mcp-server.git
+cd teamdynamix-mcp-server
+
+# Build (requires a GitHub Packages token for the private dependency)
+docker build \
+  --secret id=npm_token,env=NPM_TOKEN \
+  -t teamdynamix-mcp-server:local .
+```
+
+## docker-compose
+
+```yaml
+services:
+  teamdynamix-mcp:
+    image: ghcr.io/chatt-state/teamdynamix-mcp-server:latest
+    environment:
+      - TDX_BASE_URL=https://yourinstance.teamdynamix.com
+      - TDX_BEID=${TDX_BEID}
+      - TDX_WEB_SERVICES_KEY=${TDX_WEB_SERVICES_KEY}
+    stdin_open: true
+```

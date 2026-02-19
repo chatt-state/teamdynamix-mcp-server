@@ -1,0 +1,154 @@
+---
+title: All Tools
+description: Complete reference for all TeamDynamix MCP Server tools
+sidebar:
+  order: 1
+---
+
+import { Badge } from "@astrojs/starlight/components";
+
+## Navigation tools <Badge text="Always loaded" variant="success" />
+
+### `tdx_navigate`
+
+Load a domain tool set on demand.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `domain` | string | Yes | One of: `tickets`, `knowledge_base`, `people`, `assets` |
+
+### `tdx_status`
+
+Returns the current server status including loaded domains and configured app IDs. Takes no parameters.
+
+---
+
+## Tickets domain <Badge text="Lazy loaded" variant="note" />
+
+Loaded via `tdx_navigate("tickets")`.
+
+### `tdx_tickets_search`
+
+Search tickets by text and filters.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `searchText` | string | No | Free-text search across ticket fields |
+| `statusIds` | number[] | No | Filter by status IDs |
+| `priorityIds` | number[] | No | Filter by priority IDs |
+| `typeIds` | number[] | No | Filter by type IDs |
+| `responsibilityGroupIds` | number[] | No | Filter by responsible group IDs |
+| `requestorUids` | string[] | No | Filter by requestor UIDs |
+| `maxResults` | number | No | Maximum results to return |
+
+### `tdx_tickets_get`
+
+Get full ticket details including description, custom attributes, and attachments.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `ticketId` | number | Yes | The ticket ID to retrieve |
+
+### `tdx_tickets_create`
+
+Create a new ticket.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `title` | string | Yes | Ticket title |
+| `typeId` | number | Yes | Ticket type ID |
+| `description` | string | No | Description (HTML supported) |
+| `statusId` | number | No | Status ID |
+| `priorityId` | number | No | Priority ID |
+| `accountId` | number | No | Department/account ID |
+| `requestorEmail` | string | No | Requestor email address |
+| `requestorUid` | string | No | Requestor UID (GUID) |
+| `responsibleUid` | string | No | Responsible person UID |
+| `responsibleGroupId` | number | No | Responsible group ID |
+| `sourceId` | number | No | Ticket source ID |
+| `formId` | number | No | Form ID |
+
+### `tdx_tickets_update`
+
+Update an existing ticket.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `ticketId` | number | Yes | Ticket ID to update |
+| `title` | string | No | New title |
+| `description` | string | No | New description |
+| `statusId` | number | No | New status ID |
+| `priorityId` | number | No | New priority ID |
+| `typeId` | number | No | New type ID |
+| `responsibleUid` | string | No | New responsible person UID |
+| `responsibleGroupId` | number | No | New responsible group ID |
+
+---
+
+## Knowledge Base domain <Badge text="Lazy loaded" variant="note" />
+
+Loaded via `tdx_navigate("knowledge_base")`.
+
+### `tdx_kb_search`
+
+Search knowledge base articles.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `searchText` | string | No | Search text |
+| `categoryId` | number | No | Category ID filter |
+| `maxResults` | number | No | Maximum results |
+
+### `tdx_kb_get_article`
+
+Get full article content by ID.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `articleId` | number | Yes | The article ID |
+
+---
+
+## People domain <Badge text="Lazy loaded" variant="note" />
+
+Loaded via `tdx_navigate("people")`.
+
+### `tdx_people_search`
+
+Search for people by name, email, or other criteria.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `searchText` | string | No | Search by name or email |
+| `maxResults` | number | No | Maximum results |
+
+### `tdx_people_get`
+
+Get detailed person information by UID.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `uid` | string | Yes | Person UID (GUID) |
+
+---
+
+## Assets domain <Badge text="Lazy loaded" variant="note" />
+
+Loaded via `tdx_navigate("assets")`.
+
+### `tdx_assets_search`
+
+Search assets and configuration items.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `searchText` | string | No | Search text |
+| `maxResults` | number | No | Maximum results |
+
+### `tdx_assets_get`
+
+Get full asset details by ID.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `assetId` | number | Yes | The asset ID |

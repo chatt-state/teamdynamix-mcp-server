@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- README.md with installation, configuration, and usage documentation
+- Astro Starlight documentation site (`docs/`) with Chattanooga State brand theme
+- Documentation pages: getting started, guides (Claude, Docker), reference (tools, environment)
+- Repository made public with description and topic tags
 - `.mcpbignore` file for slim MCPB bundles (excludes tests, source, dev config)
 - `publish-mcpb` job in release workflow — attaches `.mcpb` bundle to GitHub releases
 - Docker MCP Gateway support via `io.docker.server.metadata` label in Dockerfile

@@ -1,0 +1,52 @@
+---
+title: Introduction
+description: What is the TeamDynamix MCP Server and why use it?
+sidebar:
+  order: 1
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+The **TeamDynamix MCP Server** connects AI assistants like Claude to your [TeamDynamix](https://www.teamdynamix.com/) instance via the [Model Context Protocol](https://modelcontextprotocol.io).
+
+## What it does
+
+Instead of switching between Claude and the TDX web interface, you can ask questions and take actions directly in your AI conversation:
+
+- *"Search for open tickets about VPN issues"*
+- *"Look up the KB article on password resets"*
+- *"Find all assets assigned to the biology department"*
+- *"Create a ticket for a new laptop request"*
+
+## Key features
+
+<CardGrid>
+  <Card title="Lazy loading" icon="rocket">
+    Only 2 tools load at startup. Domain tools load on demand — keeping the AI's tool context small and fast.
+  </Card>
+  <Card title="4 domains" icon="puzzle">
+    Tickets, Knowledge Base, People, and Assets — with more coming.
+  </Card>
+  <Card title="Auto-discovery" icon="magnifier">
+    App IDs for ticketing, assets, and KB are discovered automatically from your TDX instance.
+  </Card>
+  <Card title="Multiple transports" icon="setting">
+    Run via stdio for Claude Desktop, or HTTP for remote deployments.
+  </Card>
+</CardGrid>
+
+## How it works
+
+The server uses a **decision-tree navigation** pattern:
+
+1. On startup, only `tdx_navigate` and `tdx_status` are registered
+2. When the AI needs ticket data, it calls `tdx_navigate("tickets")`
+3. The tickets domain tools (`tdx_tickets_search`, `tdx_tickets_get`, etc.) load dynamically
+4. The AI uses those tools to fulfill your request
+
+This pattern keeps the initial tool footprint small — important for LLMs that have limited tool context windows.
+
+## Next steps
+
+- [Installation](/getting-started/installation/) — get the server running
+- [Configuration](/getting-started/configuration/) — set up your TDX credentials

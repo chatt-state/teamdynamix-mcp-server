@@ -1,0 +1,61 @@
+---
+title: Environment Variables
+description: All configuration options for the TeamDynamix MCP Server
+sidebar:
+  order: 2
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+## Required
+
+### `TDX_BASE_URL`
+
+Your TeamDynamix instance URL.
+
+```
+TDX_BASE_URL=https://yourschool.teamdynamix.com
+```
+
+### `TDX_BEID`
+
+The API Back End ID — a GUID found in TDAdmin under Organization Details → Security.
+
+```
+TDX_BEID=308359CB-7476-4869-A40A-CC21FC17A1E7
+```
+
+### `TDX_WEB_SERVICES_KEY`
+
+The API Web Services Key — a GUID found on the same TDAdmin page as the BEID.
+
+```
+TDX_WEB_SERVICES_KEY=5BBE000D-AA47-4C69-A060-9DAC25EC5AC6
+```
+
+<Aside type="tip">
+  These are example values. Use your own credentials from TDAdmin.
+</Aside>
+
+## Optional
+
+### `TDX_TICKETING_APP_ID`
+
+The numeric ID of your ticketing application. If not set, the server queries `GET /api/applications` and picks the first app with `AppClass` of `TDTickets`.
+
+### `TDX_ASSETS_APP_ID`
+
+The numeric ID of your assets/CI application. Auto-discovered from apps with `AppClass` of `TDAssets`.
+
+### `TDX_KB_APP_ID`
+
+The numeric ID of your knowledge base application. Auto-discovered from apps with `AppClass` of `TDKnowledgeBase`.
+
+### `TDX_MCP_TRANSPORT`
+
+The transport protocol to use.
+
+| Value | Description |
+|---|---|
+| `stdio` | Standard input/output (default). Used by Claude Desktop, Claude Code, and most MCP clients. |
+| `http` | Streamable HTTP transport. Useful for remote deployments. |

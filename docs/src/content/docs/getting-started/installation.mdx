@@ -1,0 +1,93 @@
+---
+title: Installation
+description: Install the TeamDynamix MCP Server
+sidebar:
+  order: 2
+---
+
+import { Tabs, TabItem, Steps } from "@astrojs/starlight/components";
+
+## Prerequisites
+
+- **Node.js 20+**
+- A TeamDynamix instance with API access enabled
+- Admin service account credentials (BEID + Web Services Key)
+
+## Install
+
+<Tabs>
+  <TabItem label="Claude Desktop">
+    Add to your `claude_desktop_config.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "teamdynamix": {
+          "command": "npx",
+          "args": ["-y", "@chatt-state/teamdynamix-mcp-server"],
+          "env": {
+            "TDX_BASE_URL": "https://yourinstance.teamdynamix.com",
+            "TDX_BEID": "your-beid-guid",
+            "TDX_WEB_SERVICES_KEY": "your-web-services-key"
+          }
+        }
+      }
+    }
+    ```
+  </TabItem>
+
+  <TabItem label="Claude Code">
+    Add to your project's `.mcp.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "teamdynamix": {
+          "command": "npx",
+          "args": ["-y", "@chatt-state/teamdynamix-mcp-server"],
+          "env": {
+            "TDX_BASE_URL": "https://yourinstance.teamdynamix.com",
+            "TDX_BEID": "your-beid-guid",
+            "TDX_WEB_SERVICES_KEY": "your-web-services-key"
+          }
+        }
+      }
+    }
+    ```
+  </TabItem>
+
+  <TabItem label="Docker">
+    ```bash
+    docker run --rm -i \
+      -e TDX_BASE_URL=https://yourinstance.teamdynamix.com \
+      -e TDX_BEID=your-beid-guid \
+      -e TDX_WEB_SERVICES_KEY=your-web-services-key \
+      ghcr.io/chatt-state/teamdynamix-mcp-server:latest
+    ```
+  </TabItem>
+
+  <TabItem label="From source">
+    ```bash
+    git clone https://github.com/chatt-state/teamdynamix-mcp-server.git
+    cd teamdynamix-mcp-server
+    npm install
+    npm run build
+    ```
+
+    Then run with:
+    ```bash
+    TDX_BASE_URL=https://yourinstance.teamdynamix.com \
+    TDX_BEID=your-beid-guid \
+    TDX_WEB_SERVICES_KEY=your-web-services-key \
+    node dist/index.js
+    ```
+  </TabItem>
+</Tabs>
+
+## Verify
+
+Once connected, ask your AI assistant:
+
+> What's the status of the TeamDynamix server?
+
+The AI should call `tdx_status` and report back with the loaded domains and configured apps.

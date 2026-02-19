@@ -1,0 +1,64 @@
+---
+title: Using with Claude
+description: How to use the TeamDynamix MCP Server with Claude
+sidebar:
+  order: 1
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+Once the server is connected, Claude automatically discovers and uses the available tools. Here's how it works in practice.
+
+## Navigation pattern
+
+Claude starts with two tools: `tdx_navigate` and `tdx_status`. When you ask a question that requires domain-specific tools, Claude will:
+
+1. Call `tdx_navigate` with the appropriate domain
+2. Discover the newly loaded tools
+3. Use those tools to answer your question
+
+This happens transparently — you just ask your question.
+
+## Example conversations
+
+### Searching tickets
+
+> **You:** Find open tickets about VPN connectivity issues
+>
+> **Claude:** *calls `tdx_navigate("tickets")`, then `tdx_tickets_search` with searchText "VPN connectivity"*
+>
+> I found 3 open tickets related to VPN connectivity...
+
+### Looking up a person
+
+> **You:** Who is the contact for IT support in the biology department?
+>
+> **Claude:** *calls `tdx_navigate("people")`, then `tdx_people_search` with department filter*
+>
+> The IT liaison for the Biology department is...
+
+### Creating a ticket
+
+> **You:** Create a ticket for a new laptop request for John Smith
+>
+> **Claude:** *calls `tdx_navigate("tickets")`, then `tdx_tickets_create`*
+>
+> I've created ticket #12345 for a new laptop request...
+
+<Aside type="caution">
+  Creating and updating tickets makes real changes in your TDX instance. Claude will typically confirm before taking write actions, but review the details before approving.
+</Aside>
+
+### Checking KB articles
+
+> **You:** Is there a KB article about setting up email on mobile devices?
+>
+> **Claude:** *calls `tdx_navigate("knowledge_base")`, then `tdx_kb_search`*
+>
+> Yes, I found an article titled "Mobile Email Setup Guide"...
+
+## Tips
+
+- **Be specific** — "search for tickets assigned to the help desk about printers" works better than "find printer stuff"
+- **Use domain language** — Claude understands TDX concepts like status, priority, responsible group, and requestor
+- **Chain requests** — "Find ticket 12345 and summarize it, then search for similar open tickets"

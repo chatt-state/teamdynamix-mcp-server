@@ -1,0 +1,52 @@
+---
+title: Configuration
+description: Configure the TeamDynamix MCP Server
+sidebar:
+  order: 3
+---
+
+import { Steps } from "@astrojs/starlight/components";
+
+## Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `TDX_BASE_URL` | Yes | Your TeamDynamix instance URL (e.g. `https://yourschool.teamdynamix.com`) |
+| `TDX_BEID` | Yes | API BEID — a GUID from TDAdmin |
+| `TDX_WEB_SERVICES_KEY` | Yes | API Web Services Key — a GUID from TDAdmin |
+| `TDX_TICKETING_APP_ID` | No | Ticketing application ID (auto-discovered if not set) |
+| `TDX_ASSETS_APP_ID` | No | Assets/CI application ID (auto-discovered if not set) |
+| `TDX_KB_APP_ID` | No | Knowledge Base application ID (auto-discovered if not set) |
+| `TDX_MCP_TRANSPORT` | No | Transport mode: `stdio` (default) or `http` |
+
+## Finding your credentials
+
+<Steps>
+1. Log into **TDAdmin** at `https://yourinstance.teamdynamix.com/TDAdmin`
+
+2. Navigate to **Organization Details**
+
+3. In the **Security** section, find:
+   - **Web Services BEID** → use as `TDX_BEID`
+   - **Web Services Key** → use as `TDX_WEB_SERVICES_KEY`
+
+4. You need the **"Add BE Administrators"** permission to see these values. If you don't see the Security section, ask a TDX admin with that role.
+</Steps>
+
+## Auto-discovery
+
+The server automatically discovers your ticketing, assets, and knowledge base app IDs by querying the TDX API on first use. You only need to set the `TDX_*_APP_ID` variables if:
+
+- Your instance has multiple apps of the same type
+- You want to target a specific app instead of the default
+- Auto-discovery is failing for some reason
+
+## Testing your credentials
+
+```bash
+curl -s -X POST "https://yourinstance.teamdynamix.com/TDWebApi/api/auth/loginadmin" \
+  -H "Content-Type: application/json" \
+  -d '{"BEID": "your-beid", "WebServicesKey": "your-key"}'
+```
+
+A successful response is a raw JWT string. If you get a 401, ensure the admin service account is set to **Active** in TDAdmin.
