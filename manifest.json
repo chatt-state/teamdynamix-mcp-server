@@ -9,7 +9,10 @@
     "name": "Aaron Sachs / Chattanooga State Community College"
   },
   "license": "MIT",
-  "repository": "https://github.com/chatt-state/teamdynamix-mcp-server",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chatt-state/teamdynamix-mcp-server.git"
+  },
   "homepage": "https://github.com/chatt-state/teamdynamix-mcp-server#readme",
   "server": {
     "type": "node",

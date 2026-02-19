@@ -67,7 +67,8 @@ try {
 
   // Pack from staging dir, output to project root
   const outFile = join(root, "teamdynamix-mcp-server.mcpb");
-  execSync(`npx mcpb pack "${stage}" "${outFile}"`, { cwd: root, stdio: "inherit" });
+  const mcpb = join(root, "node_modules", ".bin", "mcpb");
+  execSync(`"${mcpb}" pack "${stage}" "${outFile}"`, { cwd: root, stdio: "inherit" });
 
   console.log(`\nDone! Bundle written to project root.`);
 } finally {
