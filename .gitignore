@@ -1,5 +1,7 @@
 node_modules/
 dist/
+*.mcpb
+docker-mcp-catalog.yaml
 .env
 .env.*
 !.env.example

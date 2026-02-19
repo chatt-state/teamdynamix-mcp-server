@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `.mcpbignore` file for slim MCPB bundles (excludes tests, source, dev config)
+- `publish-mcpb` job in release workflow — attaches `.mcpb` bundle to GitHub releases
+- Docker MCP Gateway support via `io.docker.server.metadata` label in Dockerfile
+- Docker secret mount for GitHub Packages auth during `npm install` (no token in image layers)
+- `pack-mcpb.mjs` script for slim production-only MCPB bundles (handles local `file:` deps)
+
+### Changed
+
+- Release workflow `build-and-test` job now uses `registry-url` + `NODE_AUTH_TOKEN` for scoped packages
+- Docker build uses `--mount=type=secret` instead of `ARG` for NPM token security
+
+## [0.1.0] - Unreleased
+
+### Added
+
 - Project scaffolding with TypeScript, ESM modules, and strict type checking
 - Vitest test framework configuration
 - ESLint flat config with TypeScript rules

@@ -17,7 +17,11 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@chatt-state'
       - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
@@ -48,6 +52,8 @@ jobs:
         with:
           context: .
           push: true
+          secrets: |
+            npm_token=${{ secrets.GITHUB_TOKEN }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -67,18 +73,48 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@chatt-state'
       - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run build
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  publish-mcpb:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@chatt-state'
+      - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npm run build
+      - run: node scripts/pack-mcpb.mjs
+      - name: Upload mcpb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcpb-bundle
+          path: '*.mcpb'
+
   create-release:
-    needs: [publish-docker, publish-npm]
+    needs: [publish-docker, publish-npm, publish-mcpb]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: mcpb-bundle
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          files: '*.mcpb'
