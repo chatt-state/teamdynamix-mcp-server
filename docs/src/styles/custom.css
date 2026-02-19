@@ -1,87 +1,88 @@
-/* Chattanooga State Community College brand theme
- * Primary: Pantone 293 Blue #00528b
- * Accent:  Pantone 021 Orange #FF6900
- * Text:    #313131
- * Fonts:   Open Sans (body), Roboto Slab (headings)
+/* Dark-first professional developer docs theme
+ * Inspired by mcp.wyretechnology.com
+ * Accent: #2563eb (modern blue)
+ * Fonts: Inter (body), system monospace (code)
  */
 
-@import url("https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Roboto+Slab:wght@400;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 :root {
-  --sl-font: "Open Sans", sans-serif;
-  --sl-font-system: "Open Sans", sans-serif;
+  --sl-font: "Inter", system-ui, sans-serif;
+  --sl-font-system: "Inter", system-ui, sans-serif;
 
-  --sl-color-accent-low: #002d4d;
-  --sl-color-accent: #00528b;
-  --sl-color-accent-high: #3d8ec4;
+  --sl-color-accent-low: #dbeafe;
+  --sl-color-accent: #2563eb;
+  --sl-color-accent-high: #1d4ed8;
 
-  --sl-color-white: #ffffff;
-  --sl-color-gray-1: #f5f6f8;
-  --sl-color-gray-2: #e1e4e8;
-  --sl-color-gray-3: #a0a8b4;
-  --sl-color-gray-4: #6b7280;
-  --sl-color-gray-5: #313131;
-  --sl-color-gray-6: #1a1a1a;
-  --sl-color-black: #0d0d0d;
+  --sl-color-white: #fafafa;
+  --sl-color-gray-1: #f5f5f5;
+  --sl-color-gray-2: #e5e5e5;
+  --sl-color-gray-3: #a3a3a3;
+  --sl-color-gray-4: #737373;
+  --sl-color-gray-5: #262626;
+  --sl-color-gray-6: #171717;
+  --sl-color-black: #0a0a0a;
 
-  --sl-color-text: #313131;
-  --sl-color-text-accent: #00528b;
+  --sl-color-text: #171717;
+  --sl-color-text-accent: #2563eb;
 }
 
 :root[data-theme="dark"] {
-  --sl-color-accent-low: #0a3a5e;
-  --sl-color-accent: #3d8ec4;
-  --sl-color-accent-high: #8fc4e8;
+  --sl-color-accent-low: #1e3a5f;
+  --sl-color-accent: #3b82f6;
+  --sl-color-accent-high: #93c5fd;
 
-  --sl-color-text: #e1e4e8;
-  --sl-color-text-accent: #8fc4e8;
+  --sl-color-text: #ededed;
+  --sl-color-text-accent: #93c5fd;
 }
 
-/* Headings in Roboto Slab */
+/* Clean headings */
 h1, h2, h3, h4, h5, h6,
 .sl-markdown-content h1,
 .sl-markdown-content h2,
 .sl-markdown-content h3 {
-  font-family: "Roboto Slab", serif;
+  font-weight: 600;
 }
 
-/* Orange accent for links and highlights */
+/* Links with subtle accent underline */
 .sl-markdown-content a:not([class]) {
-  color: #00528b;
-  text-decoration-color: #FF6900;
+  color: #2563eb;
+  text-decoration-color: #93c5fd;
 }
 
 .sl-markdown-content a:not([class]):hover {
-  color: #FF6900;
+  color: #1d4ed8;
+  text-decoration-color: #2563eb;
 }
 
 :root[data-theme="dark"] .sl-markdown-content a:not([class]) {
-  color: #8fc4e8;
-  text-decoration-color: #FF6900;
+  color: #93c5fd;
+  text-decoration-color: #3b82f6;
 }
 
 :root[data-theme="dark"] .sl-markdown-content a:not([class]):hover {
-  color: #FF6900;
+  color: #bfdbfe;
+  text-decoration-color: #93c5fd;
 }
 
 /* Hero section accent */
 .hero .action.primary {
-  background-color: #00528b;
-  border-color: #00528b;
+  background-color: #2563eb;
+  border-color: #2563eb;
 }
 
 .hero .action.primary:hover {
-  background-color: #FF6900;
-  border-color: #FF6900;
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
 }
 
-/* Sidebar active state with orange indicator */
+/* Sidebar active state */
 nav[aria-label="Main"] a[aria-current="page"] {
-  border-color: #FF6900;
-  color: #00528b;
+  border-color: #2563eb;
+  color: #1d4ed8;
 }
 
 :root[data-theme="dark"] nav[aria-label="Main"] a[aria-current="page"] {
-  color: #8fc4e8;
-  border-color: #FF6900;
+  color: #93c5fd;
+  border-color: #3b82f6;
 }
