@@ -41,8 +41,8 @@ const { title, description, headings = [] } = Astro.props;
                  prose-a:text-highlight dark:prose-a:text-highlight prose-a:no-underline hover:prose-a:underline
                  [:root:not(.dark)_&]:prose-a:text-accent
                  prose-code:before:content-none prose-code:after:content-none
-                 prose-pre:bg-navy/60 dark:prose-pre:bg-navy/60 prose-pre:border prose-pre:border-navy/30
-                 [:root:not(.dark)_&]:prose [:root:not(.dark)_&]:prose-pre:bg-gray-50 [:root:not(.dark)_&]:prose-pre:border-gray-200
+                 prose-pre:bg-navy/60 dark:prose-pre:bg-navy/60 prose-pre:border prose-pre:border-navy/30 prose-pre:my-4
+                 [:root:not(.dark)_&]:prose [:root:not(.dark)_&]:prose-pre:bg-slate-100 [:root:not(.dark)_&]:prose-pre:border-slate-300
                  [:root:not(.dark)_&]:prose-headings:text-navy"
         >
           <h1>{title}</h1>

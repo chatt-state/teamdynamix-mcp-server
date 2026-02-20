@@ -34,3 +34,19 @@
   color: var(--shiki-dark) !important;
   background-color: var(--shiki-dark-bg) !important;
 }
+
+/* Light mode: stronger code block styling.
+   Overrides Shiki inline bg and ensures visible contrast against white page. */
+:root:not(.dark) .astro-code {
+  background-color: #f1f5f9 !important; /* slate-100 */
+  border: 1px solid #cbd5e1 !important; /* slate-300 */
+  border-radius: 0.5rem;
+}
+
+/* Light mode inline code: subtle background chip */
+:root:not(.dark) .prose :where(code):not(:where(pre *)) {
+  background-color: #f1f5f9;
+  padding: 0.15em 0.35em;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
