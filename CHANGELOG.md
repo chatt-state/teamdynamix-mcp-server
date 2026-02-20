@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - KB category elicitation in `tdx_kb_create_article` (categoryId now optional)
 - Ticket picklist handlers: `getTicketTypes()`, `getTicketStatuses()`, `getTicketPriorities()`
 - Asset picklist handlers: `getAssetStatuses()`, `getAssetForms()`, `createAsset()`
+- Claude plugin (`.claude-plugin/plugin.json`) with skills and commands for Claude Desktop/Code
+- Skills for all 4 domains: navigation, tickets, assets, people, knowledge-base
+- `/start` command for onboarding and server status verification
+- `.mcp.json` for MCP server configuration
 
 ### Changed
 

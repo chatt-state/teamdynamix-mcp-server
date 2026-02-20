@@ -33,6 +33,9 @@ dev-debug.log
 # tasks.json
 # tasks/
 
+# PRD files
+*.prd
+
 # Docs build output
 docs/dist/
 docs/.astro/
