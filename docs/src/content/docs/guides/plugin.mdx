@@ -1,0 +1,124 @@
+---
+title: Claude Plugin
+description: Use the Claude plugin for guided TDX workflows with skills and commands
+order: 2
+---
+
+import Callout from "../../../components/Callout.astro";
+import Tabs from "../../../components/Tabs.astro";
+import TabItem from "../../../components/TabItem.astro";
+
+The TeamDynamix MCP server ships as a **Claude plugin** — a package of skills, commands, and MCP server configuration that teaches Claude how to use your TDX tools effectively.
+
+## What the plugin provides
+
+| Component | Description |
+|---|---|
+| **Navigation skill** | Teaches Claude the lazy-loading pattern — always call `tdx_navigate` before domain tools |
+| **Tickets skill** | Guided workflows for searching, creating, and updating tickets |
+| **Assets skill** | Search, view, and create hardware/inventory assets |
+| **People skill** | Directory lookups with cross-domain workflows (e.g., find UID → assign ticket) |
+| **Knowledge Base skill** | Search, read, and create KB articles with category browsing |
+| **`/start` command** | Onboarding flow that verifies connectivity and shows available domains |
+
+## Installing the plugin
+
+<Tabs>
+  <TabItem label="Claude Code">
+    Clone the repo and add it as a plugin:
+
+    ```bash
+    git clone https://github.com/chatt-state/teamdynamix-mcp-server.git
+    ```
+
+    Then add the plugin path to your Claude Code settings. The `.mcp.json` at the repo root configures the MCP server automatically.
+
+    Set the required environment variables before starting:
+
+    ```bash
+    export TDX_BASE_URL=https://yourinstance.teamdynamix.com
+    export TDX_BEID=your-beid-guid
+    export TDX_WEB_SERVICES_KEY=your-web-services-key
+    ```
+  </TabItem>
+
+  <TabItem label="Claude Desktop">
+    Clone the repo and build:
+
+    ```bash
+    git clone https://github.com/chatt-state/teamdynamix-mcp-server.git
+    cd teamdynamix-mcp-server
+    npm install && npm run build
+    ```
+
+    Add the MCP server to your `claude_desktop_config.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "teamdynamix": {
+          "command": "node",
+          "args": ["/path/to/teamdynamix-mcp-server/dist/index.js"],
+          "env": {
+            "TDX_BASE_URL": "https://yourinstance.teamdynamix.com",
+            "TDX_BEID": "your-beid-guid",
+            "TDX_WEB_SERVICES_KEY": "your-web-services-key",
+            "TDX_TICKETING_APP_ID": "123",
+            "TDX_ASSETS_APP_ID": "456",
+            "TDX_KB_APP_ID": "789"
+          }
+        }
+      }
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+## Using the `/start` command
+
+After installing, type `/start` to verify your connection:
+
+> **You:** /start
+>
+> **Claude:** *calls `tdx_status`* — Server is running. Ticketing app configured (ID: 123), Assets configured (ID: 456), KB configured (ID: 789). What would you like to do?
+
+## How skills work
+
+Skills are markdown files that Claude reads automatically when your request matches their trigger conditions. You don't need to invoke them — they activate based on what you ask.
+
+For example, asking "find open tickets about printing" triggers the **tickets skill**, which tells Claude to:
+
+1. Call `tdx_navigate({ domain: "tickets" })` to load ticket tools
+2. Call `tdx_tickets_search({ searchText: "printing" })` to find matches
+3. Format results as a table with ID, Status, Title, and Requestor columns
+
+### Skill triggers
+
+| Skill | Activates when you mention... |
+|---|---|
+| Navigation | "TDX", "TeamDynamix", "ITSM" |
+| Tickets | "ticket", "incident", "service request", "help desk" |
+| Assets | "asset", "hardware", "serial number", "laptop", "inventory" |
+| People | "person", "user", "contact", "directory", "who is" |
+| Knowledge Base | "KB", "knowledge base", "article", "FAQ", "how-to" |
+
+## Plugin structure
+
+```
+teamdynamix-mcp-server/
+├── .claude-plugin/
+│   └── plugin.json          # Plugin manifest
+├── .mcp.json                # MCP server config
+├── skills/
+│   ├── navigation/SKILL.md  # Lazy-loading pattern
+│   ├── tickets/SKILL.md     # Ticket management
+│   ├── assets/SKILL.md      # Asset management
+│   ├── people/SKILL.md      # People directory
+│   └── knowledge-base/SKILL.md  # KB articles
+└── commands/
+    └── start.md             # /start onboarding
+```
+
+<Callout type="note">
+  The plugin's skills teach Claude **when** and **how** to use each tool, including the critical navigation prerequisite. Without the plugin, Claude can still use the MCP tools directly — but may not know to call `tdx_navigate` first.
+</Callout>

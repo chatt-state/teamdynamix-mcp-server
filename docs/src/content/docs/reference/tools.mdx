@@ -5,6 +5,7 @@ order: 1
 ---
 
 import Badge from "../../../components/Badge.astro";
+import Callout from "../../../components/Callout.astro";
 
 ## Navigation tools <Badge text="Always loaded" variant="success" />
 
@@ -50,13 +51,13 @@ Get full ticket details including description, custom attributes, and attachment
 
 ### `tdx_tickets_create`
 
-Create a new ticket.
+Create a new ticket. If `typeId` is omitted, the server prompts interactively for ticket type selection.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `title` | string | Yes | Ticket title |
-| `typeId` | number | Yes | Ticket type ID |
 | `description` | string | No | Description (HTML supported) |
+| `typeId` | number | No | Ticket type ID — interactive selection if omitted |
 | `statusId` | number | No | Status ID |
 | `priorityId` | number | No | Priority ID |
 | `accountId` | number | No | Department/account ID |
@@ -69,7 +70,7 @@ Create a new ticket.
 
 ### `tdx_tickets_update`
 
-Update an existing ticket.
+Update an existing ticket. Only provided fields are changed.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -94,17 +95,36 @@ Search knowledge base articles.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `searchText` | string | No | Search text |
-| `categoryId` | number | No | Category ID filter |
-| `maxResults` | number | No | Maximum results |
+| `searchText` | string | No | Free-text search across article fields |
+| `isPublished` | boolean | No | Filter by published status |
+| `isPublic` | boolean | No | Filter by public visibility |
+| `maxResults` | number | No | Maximum results to return |
 
 ### `tdx_kb_get_article`
 
-Get full article content by ID.
+Get full article content including body, tags, custom attributes, and attachments.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `articleId` | number | Yes | The article ID |
+
+### `tdx_kb_create_article`
+
+Create a new knowledge base article. If `categoryId` is omitted, the server prompts interactively for category selection.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `title` | string | Yes | Article title |
+| `body` | string | Yes | Article body content (HTML supported) |
+| `categoryId` | number | No | Category ID — interactive selection if omitted |
+| `summary` | string | No | Short summary |
+| `isPublished` | boolean | No | Publish immediately (default: false) |
+| `isPublic` | boolean | No | Publicly visible |
+| `order` | number | No | Display order within category |
+
+### `tdx_kb_get_categories`
+
+List all knowledge base categories. Use this to find `categoryId` values for creating articles. Takes no parameters.
 
 ---
 
@@ -118,8 +138,10 @@ Search for people by name, email, or other criteria.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `searchText` | string | No | Search by name or email |
-| `maxResults` | number | No | Maximum results |
+| `searchText` | string | No | Free-text search across people fields |
+| `isActive` | boolean | No | Filter by active status |
+| `isEmployee` | boolean | No | Filter by employee status |
+| `maxResults` | number | No | Maximum results to return |
 
 ### `tdx_people_get`
 
@@ -141,8 +163,9 @@ Search assets and configuration items.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `searchText` | string | No | Search text |
-| `maxResults` | number | No | Maximum results |
+| `searchText` | string | No | Free-text search across asset fields |
+| `statusIds` | number[] | No | Filter by status IDs |
+| `maxResults` | number | No | Maximum results to return |
 
 ### `tdx_assets_get`
 
@@ -151,3 +174,22 @@ Get full asset details by ID.
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `assetId` | number | Yes | The asset ID |
+
+### `tdx_assets_create`
+
+Create a new asset. If `statusId` or `formId` are omitted, the server prompts interactively.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | Asset name |
+| `statusId` | number | No | Asset status ID — interactive selection if omitted |
+| `formId` | number | No | Asset form ID — interactive selection if omitted |
+| `serialNumber` | string | No | Serial number |
+| `tag` | string | No | Asset tag |
+| `locationId` | number | No | Location ID |
+| `owningCustomerId` | string | No | Owning customer UID |
+| `owningDepartmentId` | number | No | Owning department ID |
+
+<Callout type="note">
+  Tools marked **interactive selection if omitted** use [MCP elicitation](https://modelcontextprotocol.io/docs/concepts/elicitation) to prompt you with a dropdown of valid options. If your client doesn't support elicitation, provide the ID directly.
+</Callout>
