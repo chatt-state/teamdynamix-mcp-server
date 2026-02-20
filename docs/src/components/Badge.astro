@@ -1,0 +1,19 @@
+---
+interface Props {
+  text: string;
+  variant?: "success" | "note" | "caution" | "default";
+}
+
+const { text, variant = "default" } = Astro.props;
+
+const colors: Record<string, string> = {
+  success: "bg-green-900/50 text-green-300 border-green-800 [:root:not(.dark)_&]:bg-green-50 [:root:not(.dark)_&]:text-green-700 [:root:not(.dark)_&]:border-green-200",
+  note: "bg-highlight/10 text-highlight-light border-highlight/30 [:root:not(.dark)_&]:bg-blue-50 [:root:not(.dark)_&]:text-blue-700 [:root:not(.dark)_&]:border-blue-200",
+  caution: "bg-amber-900/50 text-amber-300 border-amber-800 [:root:not(.dark)_&]:bg-amber-50 [:root:not(.dark)_&]:text-amber-700 [:root:not(.dark)_&]:border-amber-200",
+  default: "bg-gray-800 text-gray-300 border-gray-700 [:root:not(.dark)_&]:bg-gray-100 [:root:not(.dark)_&]:text-gray-700 [:root:not(.dark)_&]:border-gray-300",
+};
+---
+
+<span class={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${colors[variant]}`}>
+  {text}
+</span>

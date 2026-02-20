@@ -1,0 +1,60 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import Sidebar from "../components/Sidebar.astro";
+import TOC from "../components/TOC.astro";
+
+interface Props {
+  title: string;
+  description?: string;
+  headings?: { depth: number; slug: string; text: string }[];
+}
+
+const { title, description, headings = [] } = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <!-- Mobile sidebar (collapsed, above content) -->
+    <details class="lg:hidden mb-6">
+      <summary class="cursor-pointer text-sm font-medium text-gray-400 hover:text-highlight [:root:not(.dark)_&]:text-gray-600 [:root:not(.dark)_&]:hover:text-accent py-2 list-none flex items-center gap-2">
+        <svg class="w-4 h-4 transition-transform [details[open]_&]:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+        Navigation
+      </summary>
+      <div class="mt-2 border border-navy/30 [:root:not(.dark)_&]:border-gray-200 rounded-lg p-4">
+        <Sidebar />
+      </div>
+    </details>
+
+    <div class="flex">
+      <!-- Left sidebar (desktop) -->
+      <div class="hidden lg:block border-r border-navy/20 [:root:not(.dark)_&]:border-gray-200">
+        <Sidebar />
+      </div>
+
+      <!-- Main content + right TOC -->
+      <div class="min-w-0 flex-1 lg:pl-8 xl:grid xl:grid-cols-[1fr_200px] xl:gap-10">
+        <article
+          class="prose prose-invert dark:prose-invert max-w-none
+                 prose-headings:font-heading prose-headings:font-semibold
+                 prose-a:text-highlight dark:prose-a:text-highlight prose-a:no-underline hover:prose-a:underline
+                 [:root:not(.dark)_&]:prose-a:text-accent
+                 prose-code:before:content-none prose-code:after:content-none
+                 prose-pre:bg-navy/60 dark:prose-pre:bg-navy/60 prose-pre:border prose-pre:border-navy/30
+                 [:root:not(.dark)_&]:prose [:root:not(.dark)_&]:prose-pre:bg-gray-50 [:root:not(.dark)_&]:prose-pre:border-gray-200
+                 [:root:not(.dark)_&]:prose-headings:text-navy"
+        >
+          <h1>{title}</h1>
+          <slot />
+        </article>
+
+        {headings.length > 0 && (
+          <aside class="hidden xl:block">
+            <TOC headings={headings} />
+          </aside>
+        )}
+      </div>
+    </div>
+  </div>
+</BaseLayout>

@@ -1,0 +1,36 @@
+@import url("https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Roboto+Slab:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-navy-dark text-gray-200 antialiased;
+  }
+
+  :root:not(.dark) body {
+    @apply bg-white text-navy;
+  }
+
+  :root {
+    color-scheme: dark;
+  }
+
+  :root:not(.dark) {
+    color-scheme: light;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Roboto Slab", Georgia, serif;
+  }
+
+}
+
+/* Shiki dual-theme: swap to dark CSS variables in dark mode.
+   Must be outside @layer to override inline styles. */
+.dark .astro-code,
+.dark .astro-code span {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+}

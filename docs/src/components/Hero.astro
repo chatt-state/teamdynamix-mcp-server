@@ -1,0 +1,36 @@
+---
+interface Props {
+  title: string;
+  tagline: string;
+  actions?: { text: string; href: string; variant?: "primary" | "secondary" }[];
+}
+
+const { title, tagline, actions = [] } = Astro.props;
+---
+
+<section class="relative overflow-hidden py-24 sm:py-32">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white [:root:not(.dark)_&]:text-navy mb-6 font-heading">
+      {title}
+    </h1>
+    <p class="text-lg sm:text-xl text-gray-400 [:root:not(.dark)_&]:text-gray-600 max-w-2xl mx-auto mb-10">
+      {tagline}
+    </p>
+    {actions.length > 0 && (
+      <div class="flex flex-wrap justify-center gap-4">
+        {actions.map(({ text, href, variant }) => (
+          <a
+            href={href}
+            class={
+              variant === "primary"
+                ? "inline-flex items-center px-6 py-3 rounded-lg bg-highlight text-white font-medium hover:bg-highlight-dark transition-colors no-underline [:root:not(.dark)_&]:bg-accent [:root:not(.dark)_&]:hover:bg-accent-dark"
+                : "inline-flex items-center px-6 py-3 rounded-lg border border-gray-600 text-gray-300 font-medium hover:border-highlight/60 hover:text-highlight-light [:root:not(.dark)_&]:border-gray-300 [:root:not(.dark)_&]:text-gray-700 [:root:not(.dark)_&]:hover:border-accent [:root:not(.dark)_&]:hover:text-accent transition-colors no-underline"
+            }
+          >
+            {text}
+          </a>
+        ))}
+      </div>
+    )}
+  </div>
+</section>

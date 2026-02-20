@@ -1,11 +1,10 @@
 ---
 title: Using with Claude
 description: How to use the TeamDynamix MCP Server with Claude
-sidebar:
-  order: 1
+order: 1
 ---
 
-import { Aside } from "@astrojs/starlight/components";
+import Callout from "../../../components/Callout.astro";
 
 Once the server is connected, Claude automatically discovers and uses the available tools. Here's how it works in practice.
 
@@ -45,9 +44,9 @@ This happens transparently — you just ask your question.
 >
 > I've created ticket #12345 for a new laptop request...
 
-<Aside type="caution">
+<Callout type="caution">
   Creating and updating tickets makes real changes in your TDX instance. Claude will typically confirm before taking write actions, but review the details before approving.
-</Aside>
+</Callout>
 
 ### Checking KB articles
 

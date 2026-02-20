@@ -1,0 +1,36 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Hero from "../components/Hero.astro";
+import Card from "../components/Card.astro";
+import CardGrid from "../components/CardGrid.astro";
+
+const base = import.meta.env.BASE_URL;
+---
+
+<BaseLayout title="Home" description="Connect AI assistants to your TeamDynamix instance via the Model Context Protocol.">
+  <Hero
+    title="TeamDynamix MCP Server"
+    tagline="Search tickets, KB articles, people, and assets through Claude using the Model Context Protocol."
+    actions={[
+      { text: "Get Started", href: `${base}/getting-started/introduction`, variant: "primary" },
+      { text: "View on GitHub", href: "https://github.com/chatt-state/teamdynamix-mcp-server", variant: "secondary" },
+    ]}
+  />
+
+  <section class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
+    <CardGrid>
+      <Card title="Quick setup">
+        Add one JSON block to your Claude config and you're connected to TeamDynamix.
+      </Card>
+      <Card title="12 tools, 4 domains">
+        Tickets, Knowledge Base, People, and Assets — loaded on demand.
+      </Card>
+      <Card title="Smart loading">
+        Decision-tree pattern keeps the tool footprint small until you need it.
+      </Card>
+      <Card title="Run anywhere">
+        npm, Docker, or Docker MCP Gateway — your choice.
+      </Card>
+    </CardGrid>
+  </section>
+</BaseLayout>

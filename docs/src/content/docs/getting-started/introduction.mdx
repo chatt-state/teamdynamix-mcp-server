@@ -1,11 +1,11 @@
 ---
 title: Introduction
 description: What is the TeamDynamix MCP Server and why use it?
-sidebar:
-  order: 1
+order: 1
 ---
 
-import { Card, CardGrid } from "@astrojs/starlight/components";
+import Card from "../../../components/Card.astro";
+import CardGrid from "../../../components/CardGrid.astro";
 
 The **TeamDynamix MCP Server** connects AI assistants like Claude to your [TeamDynamix](https://www.teamdynamix.com/) instance via the [Model Context Protocol](https://modelcontextprotocol.io).
 
@@ -21,16 +21,16 @@ Instead of switching between Claude and the TDX web interface, you can ask quest
 ## Key features
 
 <CardGrid>
-  <Card title="Lazy loading" icon="rocket">
+  <Card title="Lazy loading">
     Only 2 tools load at startup. Domain tools load on demand — keeping the AI's tool context small and fast.
   </Card>
-  <Card title="4 domains" icon="puzzle">
+  <Card title="4 domains">
     Tickets, Knowledge Base, People, and Assets — with more coming.
   </Card>
-  <Card title="Auto-discovery" icon="magnifier">
+  <Card title="Auto-discovery">
     App IDs for ticketing, assets, and KB are discovered automatically from your TDX instance.
   </Card>
-  <Card title="Multiple transports" icon="setting">
+  <Card title="Multiple transports">
     Run via stdio for Claude Desktop, or HTTP for remote deployments.
   </Card>
 </CardGrid>
@@ -48,5 +48,5 @@ This pattern keeps the initial tool footprint small — important for LLMs that 
 
 ## Next steps
 
-- [Installation](/getting-started/installation/) — get the server running
-- [Configuration](/getting-started/configuration/) — set up your TDX credentials
+- [Installation](./installation) — get the server running
+- [Configuration](./configuration) — set up your TDX credentials

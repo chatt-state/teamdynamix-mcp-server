@@ -1,0 +1,12 @@
+---
+interface Props {
+  label: string;
+}
+
+const { label } = Astro.props;
+---
+
+<div data-tab-panel data-tab-label={label} class="prose dark:prose-invert max-w-none
+     prose-pre:border prose-pre:border-navy/30 [:root:not(.dark)_&]:prose-pre:border-gray-200">
+  <slot />
+</div>

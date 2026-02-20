@@ -1,0 +1,21 @@
+---
+interface Props {
+  title: string;
+  icon?: string;
+}
+
+const { title } = Astro.props;
+---
+
+<div
+  class="rounded-lg border border-navy/30 bg-navy/40 p-5
+         [:root:not(.dark)_&]:border-gray-200 [:root:not(.dark)_&]:bg-gray-50
+         hover:border-highlight/50 [:root:not(.dark)_&]:hover:border-accent/30 transition-colors"
+>
+  <h3 class="text-base font-semibold text-white [:root:not(.dark)_&]:text-navy mb-2 mt-0 font-heading">
+    {title}
+  </h3>
+  <div class="text-sm text-gray-400 [:root:not(.dark)_&]:text-gray-600 [&>p]:m-0">
+    <slot />
+  </div>
+</div>

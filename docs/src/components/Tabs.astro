@@ -1,0 +1,47 @@
+---
+---
+
+<div class="tabs-container not-prose my-6" data-tabs>
+  <div class="flex border-b border-gray-800 [:root:not(.dark)_&]:border-gray-200 mb-4 tab-buttons" role="tablist">
+  </div>
+  <div class="tab-panels">
+    <slot />
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll("[data-tabs]").forEach((container) => {
+    const panels = container.querySelectorAll("[data-tab-panel]");
+    const buttonBar = container.querySelector(".tab-buttons");
+    if (!buttonBar) return;
+
+    panels.forEach((panel, i) => {
+      const label = (panel as HTMLElement).dataset.tabLabel || `Tab ${i + 1}`;
+      const btn = document.createElement("button");
+      btn.textContent = label;
+      btn.role = "tab";
+      btn.className =
+        "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors " +
+        (i === 0
+          ? "border-highlight text-highlight"
+          : "border-transparent text-gray-400 hover:text-white [:root:not(.dark)_&]:text-gray-500 [:root:not(.dark)_&]:hover:text-gray-900");
+      btn.addEventListener("click", () => {
+        panels.forEach((p) => ((p as HTMLElement).style.display = "none"));
+        (panel as HTMLElement).style.display = "block";
+        buttonBar.querySelectorAll("button").forEach((b, j) => {
+          b.className =
+            "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors " +
+            (j === i
+              ? "border-highlight text-highlight"
+              : "border-transparent text-gray-400 hover:text-white");
+        });
+      });
+      buttonBar.appendChild(btn);
+    });
+
+    // Show first, hide rest
+    panels.forEach((p, i) => {
+      (p as HTMLElement).style.display = i === 0 ? "block" : "none";
+    });
+  });
+</script>
