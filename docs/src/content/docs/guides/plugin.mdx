@@ -67,22 +67,14 @@ The TeamDynamix MCP server ships as a **Claude plugin** — a package of skills,
   </TabItem>
 
   <TabItem label="Claude Desktop">
-    Clone the repo and build:
-
-    ```bash
-    git clone https://github.com/chatt-state/teamdynamix-mcp-server.git
-    cd teamdynamix-mcp-server
-    npm install && npm run build
-    ```
-
     Add the MCP server to your `claude_desktop_config.json`:
 
     ```json
     {
       "mcpServers": {
         "teamdynamix": {
-          "command": "node",
-          "args": ["/path/to/teamdynamix-mcp-server/dist/index.js"],
+          "command": "npx",
+          "args": ["-y", "@chatt-state/teamdynamix-mcp-server"],
           "env": {
             "TDX_BASE_URL": "https://yourinstance.teamdynamix.com",
             "TDX_BEID": "your-beid-guid",
