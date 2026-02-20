@@ -6,8 +6,9 @@ An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to 
 
 - **Decision-tree navigation** — only 2 tools load at startup; domain tools load on demand
 - **4 domains** — Tickets, Knowledge Base, People, Assets
-- **12 tools** total across all domains
-- **Auto-discovery** — ticketing, assets, and KB app IDs are discovered automatically
+- **15 tools** total across all domains
+- **Interactive elicitation** — prompts for ticket type, asset status/form, and KB category when IDs aren't provided
+- **Claude plugin** — skills and commands for guided workflows
 - **Multiple transports** — stdio (default) and streamable HTTP
 
 ## Available Tools
@@ -23,7 +24,7 @@ An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to 
 |------|-------------|
 | `tdx_tickets_search` | Search tickets by text, status, priority, type, group |
 | `tdx_tickets_get` | Get full ticket details by ID |
-| `tdx_tickets_create` | Create a new ticket |
+| `tdx_tickets_create` | Create a new ticket (interactive type selection) |
 | `tdx_tickets_update` | Update an existing ticket |
 
 ### Knowledge Base domain
@@ -31,6 +32,8 @@ An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to 
 |------|-------------|
 | `tdx_kb_search` | Search KB articles |
 | `tdx_kb_get_article` | Get full article content |
+| `tdx_kb_create_article` | Create a new KB article (interactive category selection) |
+| `tdx_kb_get_categories` | List all KB categories |
 
 ### People domain
 | Tool | Description |
@@ -43,6 +46,7 @@ An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to 
 |------|-------------|
 | `tdx_assets_search` | Search assets/CIs |
 | `tdx_assets_get` | Get asset details by ID |
+| `tdx_assets_create` | Create a new asset (interactive status/form selection) |
 
 ## Prerequisites
 
@@ -58,6 +62,23 @@ An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to 
 4. You need the "Add BE Administrators" permission to see these values
 
 ## Installation
+
+### Claude Plugin Marketplace
+
+Install as a Claude Code plugin with guided skills and workflows:
+
+```
+/plugin marketplace add chatt-state/teamdynamix-mcp-server
+/plugin install teamdynamix@teamdynamix-mcp-server
+```
+
+Set the required environment variables:
+
+```bash
+export TDX_BASE_URL=https://yourinstance.teamdynamix.com
+export TDX_BEID=your-beid-guid
+export TDX_WEB_SERVICES_KEY=your-web-services-key
+```
 
 ### Claude Desktop / Claude Code
 
@@ -114,9 +135,9 @@ npm run build
 | `TDX_BASE_URL` | Yes | Your TeamDynamix instance URL |
 | `TDX_BEID` | Yes | API BEID (GUID format) |
 | `TDX_WEB_SERVICES_KEY` | Yes | API Web Services Key (GUID format) |
-| `TDX_TICKETING_APP_ID` | No | Ticketing app ID (auto-discovered) |
-| `TDX_ASSETS_APP_ID` | No | Assets/CI app ID (auto-discovered) |
-| `TDX_KB_APP_ID` | No | Knowledge Base app ID (auto-discovered) |
+| `TDX_TICKETING_APP_ID` | No | Ticketing app ID |
+| `TDX_ASSETS_APP_ID` | No | Assets/CI app ID |
+| `TDX_KB_APP_ID` | No | Knowledge Base app ID |
 | `TDX_MCP_TRANSPORT` | No | `stdio` (default) or `http` |
 
 ## Usage
@@ -140,6 +161,10 @@ The server uses a **decision-tree lazy loading** pattern:
 4. Subsequent calls use the newly registered domain tools
 
 This keeps the initial tool footprint small — important for LLMs with limited tool context.
+
+## Documentation
+
+Full documentation at [chatt-state.github.io/teamdynamix-mcp-server](https://chatt-state.github.io/teamdynamix-mcp-server)
 
 ## Development
 

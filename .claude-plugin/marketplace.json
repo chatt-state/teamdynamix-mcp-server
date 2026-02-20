@@ -11,7 +11,10 @@
   "plugins": [
     {
       "name": "teamdynamix",
-      "source": ".",
+      "source": {
+        "source": "github",
+        "repo": "chatt-state/teamdynamix-mcp-server"
+      },
       "description": "Manage TeamDynamix tickets, assets, people, and KB articles via MCP tools with guided skills and workflows",
       "version": "0.1.0",
       "author": {

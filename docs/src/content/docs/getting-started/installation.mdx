@@ -17,6 +17,25 @@ import Steps from "../../../components/Steps.astro";
 ## Install
 
 <Tabs>
+  <TabItem label="Plugin Marketplace">
+    Install as a Claude Code plugin with guided skills and workflows:
+
+    ```
+    /plugin marketplace add chatt-state/teamdynamix-mcp-server
+    /plugin install teamdynamix@teamdynamix-mcp-server
+    ```
+
+    Set the required environment variables:
+
+    ```bash
+    export TDX_BASE_URL=https://yourinstance.teamdynamix.com
+    export TDX_BEID=your-beid-guid
+    export TDX_WEB_SERVICES_KEY=your-web-services-key
+    ```
+
+    See the [Claude Plugin guide](/teamdynamix-mcp-server/guides/plugin) for details on the included skills and `/start` command.
+  </TabItem>
+
   <TabItem label="Claude Desktop">
     Add to your `claude_desktop_config.json`:
 
