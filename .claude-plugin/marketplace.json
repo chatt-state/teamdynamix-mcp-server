@@ -1,25 +1,16 @@
 {
   "name": "teamdynamix-mcp-server",
+  "description": "TeamDynamix ITSM integration for Claude — tickets, assets, people, and knowledge base",
   "owner": {
     "name": "Aaron Sachs",
     "email": "asachs@chattanoogastate.edu"
   },
-  "metadata": {
-    "description": "TeamDynamix ITSM integration for Claude — tickets, assets, people, and knowledge base",
-    "version": "1.0.0"
-  },
   "plugins": [
     {
       "name": "teamdynamix",
-      "source": {
-        "source": "github",
-        "repo": "chatt-state/teamdynamix-mcp-server"
-      },
+      "source": "./plugins/teamdynamix",
       "description": "Manage TeamDynamix tickets, assets, people, and KB articles via MCP tools with guided skills and workflows",
       "version": "0.1.0",
-      "author": {
-        "name": "Aaron Sachs"
-      },
       "homepage": "https://github.com/chatt-state/teamdynamix-mcp-server",
       "repository": "https://github.com/chatt-state/teamdynamix-mcp-server",
       "license": "MIT",

@@ -123,17 +123,23 @@ For example, asking "find open tickets about printing" triggers the **tickets sk
 ```
 teamdynamix-mcp-server/
 ├── .claude-plugin/
-│   ├── plugin.json          # Plugin manifest
+│   ├── plugin.json          # Root plugin (for local installs)
 │   └── marketplace.json     # Marketplace catalog
-├── .mcp.json                # MCP server config
-├── skills/
-│   ├── navigation/SKILL.md  # Lazy-loading pattern
-│   ├── tickets/SKILL.md     # Ticket management
-│   ├── assets/SKILL.md      # Asset management
-│   ├── people/SKILL.md      # People directory
-│   └── knowledge-base/SKILL.md  # KB articles
-└── commands/
-    └── start.md             # /start onboarding
+├── plugins/
+│   └── teamdynamix/         # Marketplace plugin package
+│       ├── .claude-plugin/
+│       │   └── plugin.json
+│       ├── skills/
+│       │   ├── navigation/SKILL.md
+│       │   ├── tickets/SKILL.md
+│       │   ├── assets/SKILL.md
+│       │   ├── people/SKILL.md
+│       │   └── knowledge-base/SKILL.md
+│       └── commands/
+│           └── start.md
+├── skills/                  # (mirrors plugins/teamdynamix/skills/)
+├── commands/                # (mirrors plugins/teamdynamix/commands/)
+└── .mcp.json                # MCP server config (local dev)
 ```
 
 <Callout type="note">

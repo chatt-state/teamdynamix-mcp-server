@@ -1,0 +1,36 @@
+{
+  "name": "teamdynamix",
+  "version": "0.1.0",
+  "description": "TeamDynamix ITSM integration — manage tickets, assets, people, and knowledge base articles via MCP tools",
+  "author": {
+    "name": "Aaron Sachs"
+  },
+  "homepage": "https://github.com/chatt-state/teamdynamix-mcp-server",
+  "repository": "https://github.com/chatt-state/teamdynamix-mcp-server",
+  "license": "MIT",
+  "keywords": ["teamdynamix", "itsm", "mcp", "tickets", "higher-education"],
+  "skills": [
+    "./skills/navigation",
+    "./skills/tickets",
+    "./skills/assets",
+    "./skills/people",
+    "./skills/knowledge-base"
+  ],
+  "commands": [
+    "./commands/start.md"
+  ],
+  "mcpServers": {
+    "teamdynamix": {
+      "command": "npx",
+      "args": ["-y", "@chatt-state/teamdynamix-mcp-server"],
+      "env": {
+        "TDX_BASE_URL": "",
+        "TDX_BEID": "",
+        "TDX_WEB_SERVICES_KEY": "",
+        "TDX_TICKETING_APP_ID": "",
+        "TDX_ASSETS_APP_ID": "",
+        "TDX_KB_APP_ID": ""
+      }
+    }
+  }
+}
