@@ -17,7 +17,7 @@
   "mcpServers": {
     "teamdynamix": {
       "command": "npx",
-      "args": ["-y", "@chatt-state/teamdynamix-mcp-server"],
+      "args": ["-y", "--registry", "https://npm.pkg.github.com", "@chatt-state/teamdynamix-mcp-server"],
       "env": {
         "TDX_BASE_URL": "",
         "TDX_BEID": "",

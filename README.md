@@ -89,7 +89,7 @@ Add to your MCP config (`claude_desktop_config.json` or `.mcp.json`):
   "mcpServers": {
     "teamdynamix": {
       "command": "npx",
-      "args": ["-y", "@chatt-state/teamdynamix-mcp-server"],
+      "args": ["-y", "--registry", "https://npm.pkg.github.com", "@chatt-state/teamdynamix-mcp-server"],
       "env": {
         "TDX_BASE_URL": "https://yourinstance.teamdynamix.com",
         "TDX_BEID": "your-beid-guid",
