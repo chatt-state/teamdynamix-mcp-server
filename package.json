@@ -50,7 +50,7 @@
     "higher-education"
   ],
   "dependencies": {
-    "@chatt-state/node-teamdynamix": "^0.1.0",
+    "@chatt-state/node-teamdynamix": "^0.2.0",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "zod": "^4.3.6"
   },
