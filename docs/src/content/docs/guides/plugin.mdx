@@ -24,7 +24,31 @@ The TeamDynamix MCP server ships as a **Claude plugin** — a package of skills,
 ## Installing the plugin
 
 <Tabs>
-  <TabItem label="Claude Code">
+  <TabItem label="Marketplace (Recommended)">
+    Add the marketplace and install the plugin in Claude Code:
+
+    ```
+    /plugin marketplace add chatt-state/teamdynamix-mcp-server
+    /plugin install teamdynamix@teamdynamix-mcp-server
+    ```
+
+    The plugin uses `npx` to run the MCP server automatically — no build step needed.
+
+    Set the required environment variables before starting:
+
+    ```bash
+    export TDX_BASE_URL=https://yourinstance.teamdynamix.com
+    export TDX_BEID=your-beid-guid
+    export TDX_WEB_SERVICES_KEY=your-web-services-key
+    export TDX_TICKETING_APP_ID=123
+    export TDX_ASSETS_APP_ID=456
+    export TDX_KB_APP_ID=789
+    ```
+
+    To update later: `/plugin marketplace update teamdynamix-mcp-server`
+  </TabItem>
+
+  <TabItem label="Claude Code (manual)">
     Clone the repo and add it as a plugin:
 
     ```bash
@@ -107,7 +131,8 @@ For example, asking "find open tickets about printing" triggers the **tickets sk
 ```
 teamdynamix-mcp-server/
 ├── .claude-plugin/
-│   └── plugin.json          # Plugin manifest
+│   ├── plugin.json          # Plugin manifest
+│   └── marketplace.json     # Marketplace catalog
 ├── .mcp.json                # MCP server config
 ├── skills/
 │   ├── navigation/SKILL.md  # Lazy-loading pattern

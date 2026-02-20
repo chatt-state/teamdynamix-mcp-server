@@ -16,8 +16,8 @@
   ],
   "mcpServers": {
     "teamdynamix": {
-      "command": "node",
-      "args": ["dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "@chatt-state/teamdynamix-mcp-server"],
       "env": {
         "TDX_BASE_URL": "",
         "TDX_BEID": "",

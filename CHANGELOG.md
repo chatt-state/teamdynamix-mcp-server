@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skills for all 4 domains: navigation, tickets, assets, people, knowledge-base
 - `/start` command for onboarding and server status verification
 - `.mcp.json` for MCP server configuration
+- Plugin marketplace catalog (`.claude-plugin/marketplace.json`) for `/plugin marketplace add` installation
 
 ### Changed
 
