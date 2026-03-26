@@ -16,7 +16,8 @@ export const DOMAIN_NAMES = [
   "projects",
   "reports",
   "time",
-  "admin",
+  "service_catalog",
+  "attributes",
 ] as const;
 
 export type DomainName = (typeof DOMAIN_NAMES)[number];
@@ -35,7 +36,8 @@ const MODULE_MAP: Record<DomainName, string> = {
   projects: "./projects/index.js",
   reports: "./reports/index.js",
   time: "./time/index.js",
-  admin: "./admin/index.js",
+  service_catalog: "./service-catalog/index.js",
+  attributes: "./attributes/index.js",
 };
 
 /** Known tool names per domain for reporting after load. */
@@ -61,10 +63,43 @@ const DOMAIN_TOOLS: Record<DomainName, string[]> = {
     "tdx_assets_get",
     "tdx_assets_create",
   ],
-  projects: [],
-  reports: [],
-  time: [],
-  admin: [],
+  projects: [
+    "tdx_projects_search",
+    "tdx_projects_get",
+    "tdx_projects_create",
+    "tdx_projects_update",
+  ],
+  reports: [
+    "tdx_reports_search",
+    "tdx_reports_get",
+    "tdx_reports_execute",
+  ],
+  time: [
+    "tdx_time_search",
+    "tdx_time_get",
+    "tdx_time_create",
+    "tdx_time_update",
+    "tdx_time_delete",
+    "tdx_time_get_types",
+  ],
+  service_catalog: [
+    "tdx_services_search",
+    "tdx_services_get",
+    "tdx_services_create",
+    "tdx_services_update",
+    "tdx_services_search_offerings",
+    "tdx_services_get_offering",
+    "tdx_services_create_offering",
+    "tdx_services_update_offering",
+    "tdx_services_get_categories",
+  ],
+  attributes: [
+    "tdx_attributes_list",
+    "tdx_attributes_get_choices",
+    "tdx_attributes_create_choice",
+    "tdx_attributes_update_choice",
+    "tdx_attributes_delete_choice",
+  ],
 };
 
 /**

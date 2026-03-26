@@ -1,13 +1,13 @@
 # TeamDynamix MCP Server
 
-An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to your [TeamDynamix](https://www.teamdynamix.com/) instance. Search and manage tickets, knowledge base articles, people, and assets through natural language.
+An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to your [TeamDynamix](https://www.teamdynamix.com/) instance. Search and manage tickets, knowledge base articles, people, assets, projects, time entries, reports, service catalog, and custom attributes through natural language.
 
 ## Features
 
 - **Decision-tree navigation** — only 2 tools load at startup; domain tools load on demand
-- **4 domains** — Tickets, Knowledge Base, People, Assets
-- **15 tools** total across all domains
-- **Interactive elicitation** — prompts for ticket type, asset status/form, and KB category when IDs aren't provided
+- **9 domains** — Tickets, Knowledge Base, People, Assets, Projects, Time, Reports, Service Catalog, Attributes
+- **38 tools** total across all domains
+- **Interactive elicitation** — prompts for ticket type, asset status/form, KB category, time type, and service category when IDs aren't provided
 - **Claude plugin** — skills and commands for guided workflows
 - **Multiple transports** — stdio (default) and streamable HTTP
 
@@ -16,7 +16,7 @@ An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to 
 ### Always loaded
 | Tool | Description |
 |------|-------------|
-| `tdx_navigate` | Load a domain tool set (tickets, knowledge_base, people, assets) |
+| `tdx_navigate` | Load a domain tool set (tickets, knowledge_base, people, assets, projects, reports, time, service_catalog, attributes) |
 | `tdx_status` | Server status and loaded domains |
 
 ### Tickets domain
@@ -47,6 +47,53 @@ An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to 
 | `tdx_assets_search` | Search assets/CIs |
 | `tdx_assets_get` | Get asset details by ID |
 | `tdx_assets_create` | Create a new asset (interactive status/form selection) |
+
+### Projects domain
+| Tool | Description |
+|------|-------------|
+| `tdx_projects_search` | Search projects by text, status, account |
+| `tdx_projects_get` | Get full project details by ID |
+| `tdx_projects_create` | Create a new project |
+| `tdx_projects_update` | Update an existing project |
+
+### Time domain
+| Tool | Description |
+|------|-------------|
+| `tdx_time_search` | Search time entries by date range and resource |
+| `tdx_time_get` | Get full time entry details by ID |
+| `tdx_time_create` | Log a new time entry (interactive type selection) |
+| `tdx_time_update` | Update an existing time entry |
+| `tdx_time_delete` | Delete a time entry |
+| `tdx_time_get_types` | List all available time types |
+
+### Reports domain
+| Tool | Description |
+|------|-------------|
+| `tdx_reports_search` | Search reports by name |
+| `tdx_reports_get` | Get report metadata by ID |
+| `tdx_reports_execute` | Execute a report and return data rows |
+
+### Service Catalog domain
+| Tool | Description |
+|------|-------------|
+| `tdx_services_search` | Search the service catalog |
+| `tdx_services_get` | Get full service details by ID |
+| `tdx_services_create` | Create a new service (interactive category selection) |
+| `tdx_services_update` | Update an existing service |
+| `tdx_services_search_offerings` | Search offerings within a service |
+| `tdx_services_get_offering` | Get full offering details |
+| `tdx_services_create_offering` | Create a new offering within a service |
+| `tdx_services_update_offering` | Update an existing offering |
+| `tdx_services_get_categories` | List all service categories |
+
+### Attributes domain
+| Tool | Description |
+|------|-------------|
+| `tdx_attributes_list` | List custom attribute definitions for a component |
+| `tdx_attributes_get_choices` | Get picklist choices for an attribute |
+| `tdx_attributes_create_choice` | Add a new picklist choice |
+| `tdx_attributes_update_choice` | Update an existing picklist choice |
+| `tdx_attributes_delete_choice` | Remove a picklist choice |
 
 ## Prerequisites
 
@@ -138,6 +185,7 @@ npm run build
 | `TDX_TICKETING_APP_ID` | No | Ticketing app ID |
 | `TDX_ASSETS_APP_ID` | No | Assets/CI app ID |
 | `TDX_KB_APP_ID` | No | Knowledge Base app ID |
+| `TDX_SERVICE_CATALOG_APP_ID` | No | Service Catalog app ID |
 | `TDX_MCP_TRANSPORT` | No | `stdio` (default) or `http` |
 
 ## Usage
@@ -148,6 +196,11 @@ Once connected, ask your AI assistant things like:
 - "Look up the KB article about password resets"
 - "Find all assets assigned to the IT department"
 - "Create a ticket for a new laptop request"
+- "Show me all active projects"
+- "Log 2 hours against ticket #12345"
+- "Run the monthly SLA report"
+- "Search the service catalog for email services"
+- "List the custom attributes on tickets"
 
 The assistant will automatically load the relevant domain tools via `tdx_navigate` before executing searches.
 

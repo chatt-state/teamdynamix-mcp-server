@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Projects domain** — `tdx_projects_search`, `tdx_projects_get`, `tdx_projects_create`, `tdx_projects_update` (4 tools)
+- **Time domain** — `tdx_time_search`, `tdx_time_get`, `tdx_time_create`, `tdx_time_update`, `tdx_time_delete`, `tdx_time_get_types` (6 tools)
+- **Reports domain** — `tdx_reports_search`, `tdx_reports_get`, `tdx_reports_execute` (3 tools)
+- **Service Catalog domain** — `tdx_services_search`, `tdx_services_get`, `tdx_services_create`, `tdx_services_update`, `tdx_services_search_offerings`, `tdx_services_get_offering`, `tdx_services_create_offering`, `tdx_services_update_offering`, `tdx_services_get_categories` (9 tools)
+- **Attributes domain** — `tdx_attributes_list`, `tdx_attributes_get_choices`, `tdx_attributes_create_choice`, `tdx_attributes_update_choice`, `tdx_attributes_delete_choice` (5 tools)
+- `TDX_SERVICE_CATALOG_APP_ID` environment variable for service catalog app configuration
+- Interactive elicitation for time type selection in `tdx_time_create`
+- Interactive elicitation for service category selection in `tdx_services_create`
+
+### Changed
+
+- Server now exposes 9 domains and 38 tools (up from 4 domains and 15 tools)
+- Domain registry updated: replaced placeholder `admin` domain with specific `service_catalog` and `attributes` domains
+- `tdx_navigate` description updated to list all available domains
+- `tdx_status` now reports `serviceCatalog` app ID in configured apps
 - MCP elicitation support for interactive form-based ID selection
 - `elicitChoice()` helper in `src/middleware/elicitation.ts` for dropdown selection forms
 - `tdx_assets_create` tool with elicitation for status and form selection

@@ -174,11 +174,12 @@ describe("DomainRegistry", () => {
       expect(tools.length).toBeGreaterThan(0);
     });
 
-    it("should return empty array for phase 2 domains", () => {
-      expect(domainRegistry.getToolNamesForDomain("projects")).toEqual([]);
-      expect(domainRegistry.getToolNamesForDomain("reports")).toEqual([]);
-      expect(domainRegistry.getToolNamesForDomain("time")).toEqual([]);
-      expect(domainRegistry.getToolNamesForDomain("admin")).toEqual([]);
+    it("should return known tool names for all implemented domains", () => {
+      expect(domainRegistry.getToolNamesForDomain("projects").length).toBeGreaterThan(0);
+      expect(domainRegistry.getToolNamesForDomain("reports").length).toBeGreaterThan(0);
+      expect(domainRegistry.getToolNamesForDomain("time").length).toBeGreaterThan(0);
+      expect(domainRegistry.getToolNamesForDomain("service_catalog").length).toBeGreaterThan(0);
+      expect(domainRegistry.getToolNamesForDomain("attributes").length).toBeGreaterThan(0);
     });
   });
 

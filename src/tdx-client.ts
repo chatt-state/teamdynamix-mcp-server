@@ -28,6 +28,7 @@ export function getTdxClient(): TdxClient {
       ticketingAppId: config.ticketingAppId,
       assetsAppId: config.assetsAppId,
       kbAppId: config.kbAppId,
+      serviceCatalogAppId: config.serviceCatalogAppId,
       rateLimitBuffer: config.rateLimitBuffer,
     });
   }

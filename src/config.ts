@@ -46,6 +46,12 @@ const tdxConfigSchema = z.object({
     .positive("TDX_KB_APP_ID must be a positive integer")
     .optional(),
 
+  serviceCatalogAppId: z
+    .number()
+    .int("TDX_SERVICE_CATALOG_APP_ID must be an integer")
+    .positive("TDX_SERVICE_CATALOG_APP_ID must be a positive integer")
+    .optional(),
+
   transport: z.enum(["stdio", "http"]).default("stdio"),
 
   httpPort: z
@@ -88,6 +94,8 @@ function readEnv(): Record<string, unknown> {
     raw.assetsAppId = parseInt(env.TDX_ASSETS_APP_ID, 10);
   if (env.TDX_KB_APP_ID !== undefined)
     raw.kbAppId = parseInt(env.TDX_KB_APP_ID, 10);
+  if (env.TDX_SERVICE_CATALOG_APP_ID !== undefined)
+    raw.serviceCatalogAppId = parseInt(env.TDX_SERVICE_CATALOG_APP_ID, 10);
 
   // Transport settings
   if (env.TDX_MCP_TRANSPORT !== undefined)

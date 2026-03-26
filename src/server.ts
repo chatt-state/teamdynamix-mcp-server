@@ -33,7 +33,7 @@ mcpServer.registerTool(
   {
     description:
       "Load a TeamDynamix domain tool set. " +
-      "Available domains: tickets, knowledge_base, people, assets, projects, reports, time, admin.",
+      "Available domains: tickets, knowledge_base, people, assets, projects, reports, time, service_catalog, attributes.",
     inputSchema: {
       domain: z.enum(DOMAIN_NAMES),
     },
@@ -83,6 +83,7 @@ mcpServer.registerTool(
         ticketing: config.ticketingAppId ?? null,
         assets: config.assetsAppId ?? null,
         kb: config.kbAppId ?? null,
+        serviceCatalog: config.serviceCatalogAppId ?? null,
       },
     };
 
