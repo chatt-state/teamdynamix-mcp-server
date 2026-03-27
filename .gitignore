@@ -4,6 +4,7 @@ dist/
 docker-mcp-catalog.yaml
 .env
 .env.*
+.mcp.json
 !.env.example
 *.log
 logs/
