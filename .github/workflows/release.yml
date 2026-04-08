@@ -78,7 +78,28 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run build
-      - run: npm publish || true
+      # Idempotency guard: if the version in package.json is already on the
+      # registry (e.g. from a manual recovery publish or a rerun), skip the
+      # publish step rather than hit E409 and fail. We fail loudly on any
+      # other error — this replaces the previous `|| true` which silently
+      # swallowed ALL publish failures (auth, tarball, network, etc.).
+      - name: Check if version already published
+        id: version_check
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PKG_NAME=$(node -p "require('./package.json').name")
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "Checking ${PKG_NAME}@${PKG_VERSION}..."
+          if npm view "${PKG_NAME}@${PKG_VERSION}" version > /dev/null 2>&1; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::${PKG_NAME}@${PKG_VERSION} is already published; skipping publish step."
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish to GitHub Packages
+        if: steps.version_check.outputs.already_published != 'true'
+        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
