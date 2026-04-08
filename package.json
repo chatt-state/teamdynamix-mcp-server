@@ -1,6 +1,6 @@
 {
   "name": "@chatt-state/teamdynamix-mcp-server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "MCP server for TeamDynamix Web API",
   "author": "Aaron Sachs / Chattanooga State Community College",
@@ -50,7 +50,7 @@
     "higher-education"
   ],
   "dependencies": {
-    "@chatt-state/node-teamdynamix": "^0.2.0",
+    "@chatt-state/node-teamdynamix": "^0.3.0",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "zod": "^4.3.6"
   },
