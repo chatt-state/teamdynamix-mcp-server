@@ -11,6 +11,22 @@ import type { TicketCreateParams, TicketUpdateParams } from "@chatt-state/node-t
 import { wrapToolHandler } from "../../middleware/error-handler.js";
 import { elicitChoice } from "../../middleware/elicitation.js";
 import * as handlers from "./handlers.js";
+import type { TicketFeedEntryParams } from "./handlers.js";
+
+/**
+ * Builds the mandatory attribution header prepended to every MCP-originated
+ * ticket reply. The service account in TDX is "Chatt State Service Desk
+ * Assistant" — the CreatedBy field will always show that account, so we
+ * surface the real human user in the comment body itself. This is the only
+ * available path because TDX does not support per-user impersonation or
+ * programmatic SSO auth.
+ */
+function buildAttributionHeader(
+  fullName: string,
+  email: string,
+): string {
+  return `[Reply from ${fullName} <${email}> via Service Desk Assistant]\n\n`;
+}
 
 /**
  * Registers all ticket-related tools with the MCP server.
@@ -264,6 +280,184 @@ export function registerTicketTools(server: McpServer): void {
             {
               type: "text" as const,
               text: `Ticket #${ticket.ID} updated: ${ticket.Title}`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_tickets_reply",
+    {
+      title: "Reply to Ticket",
+      description:
+        "Add a reply (feed entry) to a TeamDynamix ticket, optionally changing " +
+        "status and/or reassigning responsibility in the same operation. " +
+        "\n\n" +
+        "IMPORTANT — ATTRIBUTION: All replies are posted via the 'Chatt State " +
+        "Service Desk Assistant' service account because TDX does not support " +
+        "per-user API impersonation. You MUST provide the real name and email " +
+        "of the user requesting this reply. NEVER invent, guess, or use " +
+        "placeholder values for these fields. If you do not know who is making " +
+        "the reply, stop and ask the user before calling this tool. The " +
+        "attribution will be prepended to the comment body so the actual " +
+        "author is recorded in the ticket history." +
+        "\n\n" +
+        "Reassignment (responsibleUid / responsibleGroupId) requires a comment " +
+        "so there is always a human-attributable audit trail for the change.",
+      inputSchema: {
+        ticketId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Ticket ID to reply to"),
+        comment: z
+          .string()
+          .min(1, "comment must not be empty")
+          .describe(
+            "The reply text. Treated as plain text unless isRichHtml is true.",
+          ),
+        actingUserFullName: z
+          .string()
+          .min(1, "actingUserFullName must not be empty")
+          .describe(
+            "REQUIRED. Full name of the real user making this reply " +
+              "(e.g., 'Aaron Sachs'). Never fabricate or guess.",
+          ),
+        actingUserEmail: z
+          .string()
+          .email("actingUserEmail must be a valid email address")
+          .describe(
+            "REQUIRED. Email address of the real user making this reply. " +
+              "Never fabricate or guess.",
+          ),
+        isPrivate: z
+          .boolean()
+          .optional()
+          .describe(
+            "If true, the reply is visible only to support staff (default: false).",
+          ),
+        isRichHtml: z
+          .boolean()
+          .optional()
+          .describe(
+            "If true, the comment body is treated as rich HTML. Default: false (plain text).",
+          ),
+        notifyEmails: z
+          .array(z.string().email())
+          .optional()
+          .describe(
+            "Additional email addresses to notify about this reply.",
+          ),
+        newStatusId: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe(
+            "If provided, change the ticket's status as part of this reply.",
+          ),
+        cascadeStatus: z
+          .boolean()
+          .optional()
+          .describe(
+            "If changing status, cascade the change to child tickets. Default: false.",
+          ),
+        responsibleUid: z
+          .string()
+          .optional()
+          .describe(
+            "If provided, reassign the ticket to this user (UID/Guid). " +
+              "Use tdx_people_search to look up UIDs.",
+          ),
+        responsibleGroupId: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe(
+            "If provided, reassign the ticket to this responsible group.",
+          ),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const {
+          ticketId,
+          comment,
+          actingUserFullName,
+          actingUserEmail,
+          isPrivate,
+          isRichHtml,
+          notifyEmails,
+          newStatusId,
+          cascadeStatus,
+          responsibleUid,
+          responsibleGroupId,
+        } = args;
+
+        const reassigning =
+          responsibleUid !== undefined || responsibleGroupId !== undefined;
+
+        // Step 1: Apply reassignment as a separate update call if requested.
+        // The TDX feed endpoint does not accept responsibility changes, so
+        // this must be a prior ticket update. On failure, we surface the
+        // error before attempting the feed entry so callers can retry cleanly.
+        if (reassigning) {
+          const updateData: TicketUpdateParams = {};
+          if (responsibleUid !== undefined)
+            updateData.ResponsibleUid = responsibleUid;
+          if (responsibleGroupId !== undefined)
+            updateData.ResponsibleGroupID = responsibleGroupId;
+          await handlers.updateTicket(ticketId, updateData);
+        }
+
+        // Step 2: Build the attributed comment body. The attribution header
+        // is always plain-text; if the caller supplied HTML, we prepend the
+        // header as-is (TDX's rich editor renders plain text inside HTML
+        // blocks correctly).
+        const header = buildAttributionHeader(
+          actingUserFullName,
+          actingUserEmail,
+        );
+        const reassignmentNote = reassigning
+          ? `\n\n[Reassigned via Service Desk Assistant${
+              responsibleUid !== undefined
+                ? ` to user UID ${responsibleUid}`
+                : ""
+            }${
+              responsibleGroupId !== undefined
+                ? ` to group ID ${responsibleGroupId}`
+                : ""
+            }]`
+          : "";
+        const attributedBody = header + comment + reassignmentNote;
+
+        // Step 3: Post the feed entry with optional status change.
+        const feedParams: TicketFeedEntryParams = {
+          Comments: attributedBody,
+          IsPrivate: isPrivate ?? false,
+          IsRichHtml: isRichHtml ?? false,
+        };
+        if (newStatusId !== undefined) feedParams.NewStatusID = newStatusId;
+        if (cascadeStatus !== undefined)
+          feedParams.CascadeStatus = cascadeStatus;
+        if (notifyEmails !== undefined && notifyEmails.length > 0)
+          feedParams.Notify = notifyEmails;
+
+        const entry = await handlers.addTicketFeedEntry(ticketId, feedParams);
+
+        const actions: string[] = [`replied on behalf of ${actingUserFullName}`];
+        if (newStatusId !== undefined)
+          actions.push(`status changed to ID ${newStatusId}`);
+        if (reassigning) actions.push("reassigned");
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Ticket #${ticketId}: ${actions.join(", ")}. Feed entry #${entry.ID} posted.`,
             },
           ],
         };

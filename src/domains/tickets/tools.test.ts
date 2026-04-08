@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerTicketTools } from "./tools.js";
 
@@ -6,17 +6,21 @@ import { registerTicketTools } from "./tools.js";
  * Mock handler dependencies so tool registration does not
  * require a real TdxClient.
  */
+const mockTickets = {
+  search: vi.fn(),
+  get: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  getFeed: vi.fn(),
+  addFeedEntry: vi.fn(),
+  getTypes: vi.fn(),
+  getStatuses: vi.fn(),
+  getPriorities: vi.fn(),
+};
+
 vi.mock("../../tdx-client.js", () => ({
   getTdxClient: vi.fn(() => ({
-    tickets: {
-      search: vi.fn(),
-      get: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      getTypes: vi.fn(),
-      getStatuses: vi.fn(),
-      getPriorities: vi.fn(),
-    },
+    tickets: mockTickets,
   })),
 }));
 
@@ -33,7 +37,11 @@ function getRegisteredTools(
 }
 
 describe("ticket tools registration", () => {
-  it("should register all four ticket tools", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should register all ticket tools", () => {
     const server = new McpServer({
       name: "test-server",
       version: "0.0.1",
@@ -47,9 +55,10 @@ describe("ticket tools registration", () => {
     expect("tdx_tickets_get" in registeredTools).toBe(true);
     expect("tdx_tickets_create" in registeredTools).toBe(true);
     expect("tdx_tickets_update" in registeredTools).toBe(true);
+    expect("tdx_tickets_reply" in registeredTools).toBe(true);
   });
 
-  it("should register exactly 4 ticket tools", () => {
+  it("should register exactly 5 ticket tools", () => {
     const server = new McpServer({
       name: "test-server",
       version: "0.0.1",
@@ -62,7 +71,7 @@ describe("ticket tools registration", () => {
     const ticketTools = Object.keys(registeredTools).filter((name) =>
       name.startsWith("tdx_tickets_"),
     );
-    expect(ticketTools).toHaveLength(4);
+    expect(ticketTools).toHaveLength(5);
   });
 
   it("should match the expected tool names from the domain registry", () => {
@@ -80,10 +89,139 @@ describe("ticket tools registration", () => {
       "tdx_tickets_get",
       "tdx_tickets_create",
       "tdx_tickets_update",
+      "tdx_tickets_reply",
     ];
 
     for (const name of expectedNames) {
       expect(name in registeredTools).toBe(true);
     }
+  });
+});
+
+describe("tdx_tickets_reply", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /**
+   * Helper: registers tools, grabs the reply tool's handler, and invokes it.
+   * The MCP SDK stores each registered tool under `_registeredTools[name]`
+   * as a `RegisteredTool` with a `handler(args, extra)` signature. Tests don't
+   * care about `extra`, so we pass a minimal stub.
+   */
+  async function invokeReplyTool(
+    args: Record<string, unknown>,
+  ): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
+    const server = new McpServer({
+      name: "test-server",
+      version: "0.0.1",
+    });
+    registerTicketTools(server);
+    const registered = getRegisteredTools(server) as Record<
+      string,
+      { handler: (args: unknown, extra: unknown) => Promise<unknown> }
+    >;
+    const tool = registered["tdx_tickets_reply"];
+    return (await tool.handler(args, {})) as {
+      content: Array<{ type: string; text: string }>;
+      isError?: boolean;
+    };
+  }
+
+  it("prepends attribution header to the comment body", async () => {
+    mockTickets.addFeedEntry.mockResolvedValue({ ID: 101 });
+
+    await invokeReplyTool({
+      ticketId: 42,
+      comment: "Issue resolved — please confirm.",
+      actingUserFullName: "Aaron Sachs",
+      actingUserEmail: "aaron.sachs@example.edu",
+    });
+
+    expect(mockTickets.addFeedEntry).toHaveBeenCalledTimes(1);
+    const [calledTicketId, calledEntry] = mockTickets.addFeedEntry.mock.calls[0];
+    expect(calledTicketId).toBe(42);
+    expect(calledEntry.Comments).toContain(
+      "[Reply from Aaron Sachs <aaron.sachs@example.edu> via Service Desk Assistant]",
+    );
+    expect(calledEntry.Comments).toContain("Issue resolved — please confirm.");
+    expect(calledEntry.IsPrivate).toBe(false);
+    expect(calledEntry.IsRichHtml).toBe(false);
+  });
+
+  it("passes through NewStatusID and CascadeStatus when supplied", async () => {
+    mockTickets.addFeedEntry.mockResolvedValue({ ID: 102 });
+
+    await invokeReplyTool({
+      ticketId: 42,
+      comment: "Closing ticket.",
+      actingUserFullName: "Jane Doe",
+      actingUserEmail: "jane.doe@example.edu",
+      newStatusId: 5,
+      cascadeStatus: true,
+    });
+
+    const [, calledEntry] = mockTickets.addFeedEntry.mock.calls[0];
+    expect(calledEntry.NewStatusID).toBe(5);
+    expect(calledEntry.CascadeStatus).toBe(true);
+  });
+
+  it("calls updateTicket before addFeedEntry when reassigning", async () => {
+    const callOrder: string[] = [];
+    mockTickets.update.mockImplementation(async () => {
+      callOrder.push("update");
+      return { ID: 42, Title: "Ticket" };
+    });
+    mockTickets.addFeedEntry.mockImplementation(async () => {
+      callOrder.push("addFeedEntry");
+      return { ID: 103 };
+    });
+
+    await invokeReplyTool({
+      ticketId: 42,
+      comment: "Reassigning to Network team.",
+      actingUserFullName: "Aaron Sachs",
+      actingUserEmail: "aaron.sachs@example.edu",
+      responsibleGroupId: 7,
+    });
+
+    expect(callOrder).toEqual(["update", "addFeedEntry"]);
+    expect(mockTickets.update).toHaveBeenCalledWith(42, {
+      ResponsibleGroupID: 7,
+    });
+    const [, calledEntry] = mockTickets.addFeedEntry.mock.calls[0];
+    expect(calledEntry.Comments).toContain("[Reassigned via Service Desk Assistant");
+    expect(calledEntry.Comments).toContain("to group ID 7");
+  });
+
+  it("does not call updateTicket when no reassignment is requested", async () => {
+    mockTickets.addFeedEntry.mockResolvedValue({ ID: 104 });
+
+    await invokeReplyTool({
+      ticketId: 42,
+      comment: "Just a status update.",
+      actingUserFullName: "Aaron Sachs",
+      actingUserEmail: "aaron.sachs@example.edu",
+    });
+
+    expect(mockTickets.update).not.toHaveBeenCalled();
+  });
+
+  it("passes notify emails to the feed entry", async () => {
+    mockTickets.addFeedEntry.mockResolvedValue({ ID: 105 });
+
+    await invokeReplyTool({
+      ticketId: 42,
+      comment: "FYI",
+      actingUserFullName: "Aaron Sachs",
+      actingUserEmail: "aaron.sachs@example.edu",
+      notifyEmails: ["alice@example.edu", "bob@example.edu"],
+    });
+
+    const [, calledEntry] = mockTickets.addFeedEntry.mock.calls[0];
+    expect(calledEntry.Notify).toEqual([
+      "alice@example.edu",
+      "bob@example.edu",
+    ]);
   });
 });

@@ -114,13 +114,34 @@ describe("ticket handlers", () => {
   });
 
   describe("addTicketFeedEntry", () => {
-    it("should forward feed entry to the library client", async () => {
+    it("should forward basic feed entry to the library client", async () => {
       const entry = { Comments: "New comment", IsPrivate: false };
       const mockEntry = { ID: 10, Comments: "New comment" };
       mockTickets.addFeedEntry.mockResolvedValue(mockEntry);
 
       const result = await addTicketFeedEntry(42, entry);
 
+      expect(mockTickets.addFeedEntry).toHaveBeenCalledWith(42, entry);
+      expect(result).toEqual(mockEntry);
+    });
+
+    it("should forward rich feed entry params (status, notify, HTML)", async () => {
+      const entry = {
+        Comments: "Closing ticket",
+        IsPrivate: false,
+        IsRichHtml: true,
+        NewStatusID: 5,
+        CascadeStatus: true,
+        Notify: ["alice@example.edu"],
+      };
+      const mockEntry = { ID: 11, Comments: "Closing ticket" };
+      mockTickets.addFeedEntry.mockResolvedValue(mockEntry);
+
+      const result = await addTicketFeedEntry(42, entry);
+
+      // The library's declared type is narrower than what we pass, but the
+      // runtime POSTs the object unchanged — verify the full payload made it
+      // through the cast.
       expect(mockTickets.addFeedEntry).toHaveBeenCalledWith(42, entry);
       expect(result).toEqual(mockEntry);
     });
