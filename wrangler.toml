@@ -1,0 +1,13 @@
+name = "tdx-mcp"
+main = "dist/worker.js"
+compatibility_date = "2025-05-28"
+compatibility_flags = ["nodejs_compat"]
+
+# Set secrets via:
+#   wrangler secret put TDX_BASE_URL
+#   wrangler secret put TDX_BEID
+#   wrangler secret put TDX_WEB_SERVICES_KEY
+#   wrangler secret put TDX_TICKETING_APP_ID   (optional but recommended)
+
+[vars]
+TDX_LOG_LEVEL = "info"
