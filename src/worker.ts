@@ -160,6 +160,8 @@ async function handleAuthorize(request: Request, env: Env): Promise<Response> {
 
   if (responseType !== "code") return oauthError("unsupported_response_type");
   if (!redirectUri) return oauthError("invalid_request");
+  // Only allow the claude.ai MCP callback — reject all other origins.
+  if (!redirectUri.startsWith("https://claude.ai/")) return oauthError("access_denied");
 
   // Build a self-contained signed auth code (no isolate-local Map needed).
   const code = await createAuthCode(env.MCP_API_KEY, {
@@ -213,46 +215,45 @@ function extractBasicPassword(authHeader: string): string {
   return idx >= 0 ? decoded.slice(idx + 1) : "";
 }
 
-// ── MCP server singleton (per isolate) ───────────────────────────────────────
+// ── MCP request handler ───────────────────────────────────────────────────────
 
-let transport: WebStandardStreamableHTTPServerTransport | null = null;
 let envReady = false;
 
+function initEnv(env: Env): void {
+  if (envReady) return;
+  process.env.TDX_BASE_URL = env.TDX_BASE_URL;
+  process.env.TDX_BEID = env.TDX_BEID;
+  process.env.TDX_WEB_SERVICES_KEY = env.TDX_WEB_SERVICES_KEY;
+  if (env.TDX_TICKETING_APP_ID) process.env.TDX_TICKETING_APP_ID = env.TDX_TICKETING_APP_ID;
+  if (env.TDX_ASSETS_APP_ID) process.env.TDX_ASSETS_APP_ID = env.TDX_ASSETS_APP_ID;
+  if (env.TDX_KB_APP_ID) process.env.TDX_KB_APP_ID = env.TDX_KB_APP_ID;
+  if (env.TDX_LOG_LEVEL) process.env.TDX_LOG_LEVEL = env.TDX_LOG_LEVEL;
+  process.env.TDX_MCP_TRANSPORT = "http";
+  resetConfig();
+  getConfig(); // validate early — throws if credentials are missing
+  envReady = true;
+}
+
 /**
- * Initialises process.env from Workers secrets and sets up the MCP server+transport.
+ * Creates a fresh McpServer + transport per MCP request.
  *
- * Called once per isolate. CF Workers route requests from the same HTTP/2
- * connection to the same isolate, so a real MCP client session (initialize →
- * tool calls) is handled by the same transport instance throughout.
+ * Using stateless mode (sessionIdGenerator: undefined) means the SDK's
+ * validateSession() short-circuits immediately — no session ID or
+ * _initialized checks. Every request is self-contained, which works
+ * correctly even when CF routes requests to different isolates.
  */
-async function init(env: Env): Promise<void> {
-  if (transport) return;
-
-  if (!envReady) {
-    process.env.TDX_BASE_URL = env.TDX_BASE_URL;
-    process.env.TDX_BEID = env.TDX_BEID;
-    process.env.TDX_WEB_SERVICES_KEY = env.TDX_WEB_SERVICES_KEY;
-    if (env.TDX_TICKETING_APP_ID) process.env.TDX_TICKETING_APP_ID = env.TDX_TICKETING_APP_ID;
-    if (env.TDX_ASSETS_APP_ID) process.env.TDX_ASSETS_APP_ID = env.TDX_ASSETS_APP_ID;
-    if (env.TDX_KB_APP_ID) process.env.TDX_KB_APP_ID = env.TDX_KB_APP_ID;
-    if (env.TDX_LOG_LEVEL) process.env.TDX_LOG_LEVEL = env.TDX_LOG_LEVEL;
-    process.env.TDX_MCP_TRANSPORT = "http";
-    resetConfig();
-    getConfig(); // validate early — throws if credentials are missing
-    envReady = true;
-  }
-
+async function dispatchMcp(request: Request): Promise<Response> {
   const server = new McpServer(
     { name: "teamdynamix-mcp-server", version: "0.1.0" },
     { capabilities: { tools: { listChanged: true } } },
   );
-  // Static registration — dynamic import() is unsupported in Wrangler's bundler
   registerTickets(server);
 
-  transport = new WebStandardStreamableHTTPServerTransport({
-    sessionIdGenerator: () => randomUUID(),
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined, // stateless: validateSession() is a no-op
   });
   await server.connect(transport);
+  return transport.handleRequest(request);
 }
 
 // ── Main fetch handler ────────────────────────────────────────────────────────
@@ -279,6 +280,13 @@ export default {
     }
 
     // OAuth endpoints (unauthenticated)
+    if (pathname === "/.well-known/oauth-protected-resource") {
+      return jsonResponse({
+        resource: url.origin,
+        authorization_servers: [url.origin],
+        bearer_methods_supported: ["header"],
+      });
+    }
     if (pathname === "/.well-known/oauth-authorization-server") {
       return oauthDiscovery(url.origin);
     }
@@ -292,8 +300,8 @@ export default {
       return handleToken(request, env);
     }
 
-    // MCP endpoint — requires bearer token
-    if (pathname === "/mcp") {
+    // MCP endpoint — handles both "/" (claude.ai connector) and "/mcp" (direct access)
+    if (pathname === "/" || pathname === "/mcp") {
       const authHeader = request.headers.get("Authorization") ?? "";
       const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
       if (!token || token !== env.MCP_API_KEY) {
@@ -301,14 +309,14 @@ export default {
           status: 401,
           headers: {
             "Content-Type": "application/json",
-            "WWW-Authenticate": `Bearer realm="${url.origin}/mcp", error="invalid_token"`,
+            "WWW-Authenticate": `Bearer realm="${url.origin}", error="invalid_token"`,
           },
         });
       }
 
       try {
-        await init(env);
-        return await transport!.handleRequest(request);
+        initEnv(env);
+        return await dispatchMcp(request);
       } catch (err) {
         console.error("MCP request error:", err);
         return jsonResponse({ error: "Internal server error" }, 500);
