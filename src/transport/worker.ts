@@ -10,7 +10,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
 
-type RequestHandler = (req: IncomingMessage, res: ServerResponse) => Promise<void>;
+type RequestHandler = (req: IncomingMessage, res: ServerResponse, parsedBody?: unknown) => Promise<void>;
 
 /**
  * Handles an incoming Workers Request by bridging it to the MCP SDK's
@@ -20,9 +20,18 @@ export async function handleMcpRequest(
   request: Request,
   handleRequest: RequestHandler,
 ): Promise<Response> {
-  // Pre-read body so we can hand it to the Node.js Readable synchronously.
-  // MCP JSON-RPC payloads are small; buffering is acceptable.
+  // Pre-read and parse body upfront. The MCP SDK's handleRequest() accepts an
+  // optional third `parsedBody` argument so we can bypass stream reading entirely —
+  // which is unreliable in Cloudflare Workers' nodejs_compat environment.
   const bodyBuffer = request.body ? await request.arrayBuffer() : null;
+  let parsedBody: unknown;
+  if (bodyBuffer && bodyBuffer.byteLength > 0) {
+    try {
+      parsedBody = JSON.parse(new TextDecoder().decode(bodyBuffer));
+    } catch {
+      // Non-JSON body (e.g. GET requests) — leave parsedBody undefined
+    }
+  }
 
   return new Promise<Response>((resolve, reject) => {
     const bodyBytes = bodyBuffer ? new Uint8Array(bodyBuffer) : new Uint8Array(0);
@@ -135,7 +144,7 @@ export async function handleMcpRequest(
       flushHeaders() {},
     } as unknown as ServerResponse;
 
-    void handleRequest(req, res).catch((err: unknown) => {
+    void handleRequest(req, res, parsedBody).catch((err: unknown) => {
       if (!resolved) reject(err as Error);
     });
   });

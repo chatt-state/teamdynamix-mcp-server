@@ -14,13 +14,12 @@
  *   wrangler secret put TDX_TICKETING_APP_ID  (optional)
  */
 
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { getConfig, resetConfig } from "./config.js";
-import { mcpServer } from "./server.js";
-import { domainRegistry, DOMAIN_NAMES, type DomainName } from "./domains/registry.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { randomUUID } from "node:crypto";
-import { handleMcpRequest } from "./transport/worker.js";
-import type { IncomingMessage, ServerResponse } from "node:http";
+// Static import so Wrangler's bundler can resolve it (dynamic import() fails in Workers)
+import { register as registerTickets } from "./domains/tickets/index.js";
 
 export interface Env {
   TDX_BASE_URL: string;
@@ -33,16 +32,78 @@ export interface Env {
   MCP_API_KEY: string;
 }
 
-// ── OAuth in-memory state (per isolate, short-lived) ──────────────────────────
+// ── Stateless auth codes (HMAC-signed, no Map needed across isolates) ────────
 
-interface AuthCodeEntry {
+interface AuthCodePayload {
   clientId: string;
   redirectUri: string;
   expiresAt: number;
   codeChallenge?: string;
 }
 
-const authCodes = new Map<string, AuthCodeEntry>();
+function b64urlEncode(s: string): string {
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+
+function b64urlDecode(s: string): string {
+  const padded = s.replace(/-/g, "+").replace(/_/g, "/");
+  return atob(padded + "=".repeat((4 - padded.length % 4) % 4));
+}
+
+// Encode auth data into a self-contained signed token so it works across CF isolates.
+// Both parts are base64url (URL-safe characters only) to survive redirect round-trips.
+async function createAuthCode(apiKey: string, data: AuthCodePayload): Promise<string> {
+  const payload = JSON.stringify(data);
+  const payloadPart = b64urlEncode(payload);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(apiKey),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sigBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  const sigPart = b64urlEncode(String.fromCharCode(...new Uint8Array(sigBuf)));
+  return payloadPart + "." + sigPart;
+}
+
+async function verifyAuthCode(apiKey: string, code: string): Promise<AuthCodePayload | null> {
+  const dot = code.indexOf(".");
+  if (dot < 0) return null;
+  const payloadPart = code.slice(0, dot);
+  const sigPart = code.slice(dot + 1);
+
+  let payload: string;
+  try { payload = b64urlDecode(payloadPart); } catch { return null; }
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(apiKey),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["verify"],
+  );
+  let sigBytes: Uint8Array;
+  try {
+    sigBytes = Uint8Array.from(b64urlDecode(sigPart), (c) => c.charCodeAt(0));
+  } catch { return null; }
+
+  const valid = await crypto.subtle.verify("HMAC", key, sigBytes.buffer as ArrayBuffer, new TextEncoder().encode(payload));
+  if (!valid) return null;
+
+  const data = JSON.parse(payload) as AuthCodePayload;
+  if (data.expiresAt < Date.now()) return null;
+  return data;
+}
+
+async function sha256base64url(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  return btoa(Array.from(new Uint8Array(buf)).map((b) => String.fromCharCode(b)).join(""))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+}
+
 const registeredClients = new Map<string, { redirectUris: string[] }>();
 
 // ── OAuth helpers ─────────────────────────────────────────────────────────────
@@ -89,7 +150,7 @@ async function handleRegister(request: Request): Promise<Response> {
   );
 }
 
-function handleAuthorize(request: Request): Response {
+async function handleAuthorize(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const clientId = url.searchParams.get("client_id") ?? "";
   const redirectUri = url.searchParams.get("redirect_uri") ?? "";
@@ -100,13 +161,12 @@ function handleAuthorize(request: Request): Response {
   if (responseType !== "code") return oauthError("unsupported_response_type");
   if (!redirectUri) return oauthError("invalid_request");
 
-  // Immediately issue an auth code — no user interaction needed for a service account.
-  const code = randomUUID();
-  authCodes.set(code, {
+  // Build a self-contained signed auth code (no isolate-local Map needed).
+  const code = await createAuthCode(env.MCP_API_KEY, {
     clientId,
     redirectUri,
     codeChallenge,
-    expiresAt: Date.now() + 60_000,
+    expiresAt: Date.now() + 300_000, // 5 minutes
   });
 
   const redirect = new URL(redirectUri);
@@ -122,23 +182,14 @@ async function handleToken(request: Request, env: Env): Promise<Response> {
 
   if (grantType === "authorization_code") {
     const code = params.get("code") ?? "";
-    const entry = authCodes.get(code);
-    if (!entry || entry.expiresAt < Date.now()) {
-      authCodes.delete(code);
-      return oauthError("invalid_grant");
-    }
-    authCodes.delete(code);
+    const entry = await verifyAuthCode(env.MCP_API_KEY, code);
+    if (!entry) return oauthError("invalid_grant");
 
     // Validate PKCE if the authorization request included a code_challenge.
     if (entry.codeChallenge) {
       const verifier = params.get("code_verifier");
       if (!verifier) return oauthError("invalid_grant");
-      const encoded = new TextEncoder().encode(verifier);
-      const hashBuf = await crypto.subtle.digest("SHA-256", encoded);
-      const computed = btoa(String.fromCharCode(...new Uint8Array(hashBuf)))
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=/g, "");
+      const computed = await sha256base64url(verifier);
       if (computed !== entry.codeChallenge) return oauthError("invalid_grant");
     }
 
@@ -162,37 +213,46 @@ function extractBasicPassword(authHeader: string): string {
   return idx >= 0 ? decoded.slice(idx + 1) : "";
 }
 
-// ── MCP server init ───────────────────────────────────────────────────────────
+// ── MCP server singleton (per isolate) ───────────────────────────────────────
 
-let transport: StreamableHTTPServerTransport | null = null;
-let initialized = false;
+let transport: WebStandardStreamableHTTPServerTransport | null = null;
+let envReady = false;
 
+/**
+ * Initialises process.env from Workers secrets and sets up the MCP server+transport.
+ *
+ * Called once per isolate. CF Workers route requests from the same HTTP/2
+ * connection to the same isolate, so a real MCP client session (initialize →
+ * tool calls) is handled by the same transport instance throughout.
+ */
 async function init(env: Env): Promise<void> {
-  if (initialized) return;
+  if (transport) return;
 
-  process.env.TDX_BASE_URL = env.TDX_BASE_URL;
-  process.env.TDX_BEID = env.TDX_BEID;
-  process.env.TDX_WEB_SERVICES_KEY = env.TDX_WEB_SERVICES_KEY;
-  if (env.TDX_TICKETING_APP_ID) process.env.TDX_TICKETING_APP_ID = env.TDX_TICKETING_APP_ID;
-  if (env.TDX_ASSETS_APP_ID) process.env.TDX_ASSETS_APP_ID = env.TDX_ASSETS_APP_ID;
-  if (env.TDX_KB_APP_ID) process.env.TDX_KB_APP_ID = env.TDX_KB_APP_ID;
-  if (env.TDX_LOG_LEVEL) process.env.TDX_LOG_LEVEL = env.TDX_LOG_LEVEL;
-  process.env.TDX_MCP_TRANSPORT = "http";
-  process.env.TDX_PRELOAD_DOMAINS = "tickets";
-
-  resetConfig();
-  const config = getConfig();
-
-  domainRegistry.setServer(mcpServer);
-  for (const domain of config.preloadDomains) {
-    if ((DOMAIN_NAMES as readonly string[]).includes(domain)) {
-      await domainRegistry.loadDomain(domain as DomainName);
-    }
+  if (!envReady) {
+    process.env.TDX_BASE_URL = env.TDX_BASE_URL;
+    process.env.TDX_BEID = env.TDX_BEID;
+    process.env.TDX_WEB_SERVICES_KEY = env.TDX_WEB_SERVICES_KEY;
+    if (env.TDX_TICKETING_APP_ID) process.env.TDX_TICKETING_APP_ID = env.TDX_TICKETING_APP_ID;
+    if (env.TDX_ASSETS_APP_ID) process.env.TDX_ASSETS_APP_ID = env.TDX_ASSETS_APP_ID;
+    if (env.TDX_KB_APP_ID) process.env.TDX_KB_APP_ID = env.TDX_KB_APP_ID;
+    if (env.TDX_LOG_LEVEL) process.env.TDX_LOG_LEVEL = env.TDX_LOG_LEVEL;
+    process.env.TDX_MCP_TRANSPORT = "http";
+    resetConfig();
+    getConfig(); // validate early — throws if credentials are missing
+    envReady = true;
   }
 
-  transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => randomUUID() });
-  await mcpServer.connect(transport);
-  initialized = true;
+  const server = new McpServer(
+    { name: "teamdynamix-mcp-server", version: "0.1.0" },
+    { capabilities: { tools: { listChanged: true } } },
+  );
+  // Static registration — dynamic import() is unsupported in Wrangler's bundler
+  registerTickets(server);
+
+  transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: () => randomUUID(),
+  });
+  await server.connect(transport);
 }
 
 // ── Main fetch handler ────────────────────────────────────────────────────────
@@ -226,7 +286,7 @@ export default {
       return handleRegister(request);
     }
     if (pathname === "/oauth/authorize") {
-      return handleAuthorize(request);
+      return handleAuthorize(request, env);
     }
     if (pathname === "/oauth/token" && request.method === "POST") {
       return handleToken(request, env);
@@ -248,10 +308,7 @@ export default {
 
       try {
         await init(env);
-        return handleMcpRequest(
-          request,
-          (req: IncomingMessage, res: ServerResponse) => transport!.handleRequest(req, res),
-        );
+        return await transport!.handleRequest(request);
       } catch (err) {
         console.error("MCP request error:", err);
         return jsonResponse({ error: "Internal server error" }, 500);
