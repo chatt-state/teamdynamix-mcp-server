@@ -225,3 +225,106 @@ describe("tdx_tickets_reply", () => {
     ]);
   });
 });
+
+describe("verified portal identity enforcement", () => {
+  const IDENTITY = {
+    email: "brad.mccormick@example.edu",
+    name: "Brad McCormick",
+    oid: "00000000-0000-0000-0000-0000000000bb",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function getTool(
+    name: string,
+    identity: typeof IDENTITY | null,
+  ): { handler: (args: unknown, extra: unknown) => Promise<unknown> } {
+    const server = new McpServer({ name: "test-server", version: "0.0.1" });
+    registerTicketTools(server, identity);
+    const registered = getRegisteredTools(server) as Record<
+      string,
+      { handler: (args: unknown, extra: unknown) => Promise<unknown> }
+    >;
+    return registered[name];
+  }
+
+  it("reply: verified identity overrides model-supplied attribution", async () => {
+    mockTickets.addFeedEntry.mockResolvedValue({ ID: 201 });
+
+    await getTool("tdx_tickets_reply", IDENTITY).handler(
+      {
+        ticketId: 7,
+        comment: "Follow-up.",
+        // Model-supplied values MUST be ignored (spoof attempt).
+        actingUserFullName: "Someone Else",
+        actingUserEmail: "attacker@example.edu",
+      },
+      {},
+    );
+
+    const [, entry] = mockTickets.addFeedEntry.mock.calls[0];
+    expect(entry.Comments).toContain(
+      "[Reply from Brad McCormick <brad.mccormick@example.edu> via Service Desk Assistant — identity verified by AI Portal]",
+    );
+    expect(entry.Comments).not.toContain("attacker@example.edu");
+  });
+
+  it("reply: verified identity makes actingUser* unnecessary", async () => {
+    mockTickets.addFeedEntry.mockResolvedValue({ ID: 202 });
+
+    const result = (await getTool("tdx_tickets_reply", IDENTITY).handler(
+      { ticketId: 8, comment: "No attribution args." },
+      {},
+    )) as { isError?: boolean };
+
+    expect(result.isError).not.toBe(true);
+    const [, entry] = mockTickets.addFeedEntry.mock.calls[0];
+    expect(entry.Comments).toContain("Brad McCormick");
+  });
+
+  it("reply: without identity, missing actingUser* is an error", async () => {
+    const result = (await getTool("tdx_tickets_reply", null).handler(
+      { ticketId: 9, comment: "Anonymous." },
+      {},
+    )) as { isError?: boolean; content: Array<{ text: string }> };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("actingUserFullName");
+    expect(mockTickets.addFeedEntry).not.toHaveBeenCalled();
+  });
+
+  it("create: requestor defaults to the verified user and filer is recorded", async () => {
+    mockTickets.create.mockResolvedValue({ ID: 301, Title: "Printer down" });
+
+    await getTool("tdx_tickets_create", IDENTITY).handler(
+      { title: "Printer down", typeId: 1, description: "3rd floor printer." },
+      {},
+    );
+
+    const [ticketData] = mockTickets.create.mock.calls[0];
+    expect(ticketData.RequestorEmail).toBe("brad.mccormick@example.edu");
+    expect(ticketData.Description).toContain(
+      "[Filed by Brad McCormick <brad.mccormick@example.edu> via AI Portal — identity verified]",
+    );
+  });
+
+  it("create: explicit requestor (on someone's behalf) is honored, filer still recorded", async () => {
+    mockTickets.create.mockResolvedValue({ ID: 302, Title: "Reset for Jane" });
+
+    await getTool("tdx_tickets_create", IDENTITY).handler(
+      {
+        title: "Reset for Jane",
+        typeId: 1,
+        description: "Password reset.",
+        requestorEmail: "jane.doe@example.edu",
+      },
+      {},
+    );
+
+    const [ticketData] = mockTickets.create.mock.calls[0];
+    expect(ticketData.RequestorEmail).toBe("jane.doe@example.edu");
+    expect(ticketData.Description).toContain("[Filed by Brad McCormick");
+  });
+});

@@ -20,6 +20,11 @@ import { getConfig, resetConfig } from "./config.js";
 import { randomUUID } from "node:crypto";
 // Static import so Wrangler's bundler can resolve it (dynamic import() fails in Workers)
 import { register as registerTickets } from "./domains/tickets/index.js";
+import {
+  PortalIdentityError,
+  verifyPortalIdentity,
+  type PortalIdentity,
+} from "./middleware/portal-identity.js";
 
 export interface Env {
   TDX_BASE_URL: string;
@@ -30,6 +35,13 @@ export interface Env {
   TDX_KB_APP_ID?: string;
   TDX_LOG_LEVEL?: string;
   MCP_API_KEY: string;
+  /**
+   * Shared HMAC key for the X-Portal-User verified-identity header (set the
+   * same value as the AI portal's MCP_IDENTITY_SIGNING_KEY). Optional: when
+   * unset, identity headers are rejected and all clients use the
+   * model-supplied attribution path.
+   */
+  PORTAL_IDENTITY_KEY?: string;
 }
 
 // ── Stateless auth codes (HMAC-signed, no Map needed across isolates) ────────
@@ -242,12 +254,14 @@ function initEnv(env: Env): void {
  * _initialized checks. Every request is self-contained, which works
  * correctly even when CF routes requests to different isolates.
  */
-async function dispatchMcp(request: Request): Promise<Response> {
+async function dispatchMcp(request: Request, identity: PortalIdentity | null): Promise<Response> {
   const server = new McpServer(
     { name: "teamdynamix-mcp-server", version: "0.1.0" },
     { capabilities: { tools: { listChanged: true } } },
   );
-  registerTickets(server);
+  // Stateless mode builds a fresh server per request, so the verified
+  // identity can shape tool registration (schemas + enforced attribution).
+  registerTickets(server, identity);
 
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined, // stateless: validateSession() is a no-op
@@ -269,7 +283,7 @@ export default {
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization, Mcp-Session-Id",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, Mcp-Session-Id, X-Portal-User",
         },
       });
     }
@@ -314,9 +328,26 @@ export default {
         });
       }
 
+      // Verified user identity (X-Portal-User) — absent header is fine
+      // (model-supplied attribution path); an invalid one is rejected so a
+      // forgery can never downgrade to the weaker path.
+      let identity: PortalIdentity | null;
+      try {
+        identity = await verifyPortalIdentity(
+          request.headers.get("X-Portal-User"),
+          env.PORTAL_IDENTITY_KEY,
+        );
+      } catch (err) {
+        const detail = err instanceof PortalIdentityError ? err.message : "identity verification failed";
+        return new Response(JSON.stringify({ error: `Unauthorized: ${detail}` }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
       try {
         initEnv(env);
-        return await dispatchMcp(request);
+        return await dispatchMcp(request, identity);
       } catch (err) {
         console.error("MCP request error:", err);
         return jsonResponse({ error: "Internal server error" }, 500);

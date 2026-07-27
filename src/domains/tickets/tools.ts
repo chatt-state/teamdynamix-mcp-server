@@ -10,6 +10,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { TicketCreateParams, TicketUpdateParams } from "@chatt-state/node-teamdynamix";
 import { wrapToolHandler } from "../../middleware/error-handler.js";
 import { elicitChoice } from "../../middleware/elicitation.js";
+import type { PortalIdentity } from "../../middleware/portal-identity.js";
 import * as handlers from "./handlers.js";
 import type { TicketFeedEntryParams } from "./handlers.js";
 
@@ -20,19 +21,32 @@ import type { TicketFeedEntryParams } from "./handlers.js";
  * surface the real human user in the comment body itself. This is the only
  * available path because TDX does not support per-user impersonation or
  * programmatic SSO auth.
+ *
+ * `verified` marks identities proven cryptographically (X-Portal-User) vs
+ * supplied by the model, so ticket history records which trust level applied.
  */
 function buildAttributionHeader(
   fullName: string,
   email: string,
+  verified: boolean,
 ): string {
-  return `[Reply from ${fullName} <${email}> via Service Desk Assistant]\n\n`;
+  const suffix = verified ? " — identity verified by AI Portal" : "";
+  return `[Reply from ${fullName} <${email}> via Service Desk Assistant${suffix}]\n\n`;
 }
 
 /**
  * Registers all ticket-related tools with the MCP server.
  * Tools follow the `tdx_tickets_*` naming convention.
+ *
+ * `identity` is the verified portal user (X-Portal-User header) or null.
+ * When present it is authoritative for attribution: tickets_reply ignores
+ * the model-supplied actingUser* arguments, and tickets_create defaults the
+ * requestor to the verified user and records them as the filer.
  */
-export function registerTicketTools(server: McpServer): void {
+export function registerTicketTools(
+  server: McpServer,
+  identity: PortalIdentity | null = null,
+): void {
   server.registerTool(
     "tdx_tickets_search",
     {
@@ -135,7 +149,11 @@ export function registerTicketTools(server: McpServer): void {
     "tdx_tickets_create",
     {
       title: "Create Ticket",
-      description: "Create a new TeamDynamix ticket.",
+      description: identity
+        ? `Create a new TeamDynamix ticket. The requestor defaults to the ` +
+          `verified portal user (${identity.name}); pass requestorEmail/` +
+          `requestorUid only when filing on behalf of someone else.`
+        : "Create a new TeamDynamix ticket.",
       inputSchema: {
         title: z.string().describe("Ticket title"),
         description: z
@@ -211,6 +229,19 @@ export function registerTicketTools(server: McpServer): void {
           sourceId,
           formId,
         } = args;
+        // Verified-identity attribution: TDX's CreatedBy is always the API
+        // service account (no impersonation exists), so the requestor and a
+        // filer note in the description are how the real human is recorded.
+        // Default the requestor to the verified user when the model did not
+        // name one explicitly (explicit values stay honored — staff filing
+        // on someone's behalf is legitimate).
+        const effectiveRequestorEmail =
+          identity && !requestorEmail && !requestorUid
+            ? identity.email
+            : requestorEmail;
+        const filedByNote = identity
+          ? `\n\n[Filed by ${identity.name} <${identity.email}> via AI Portal — identity verified]`
+          : "";
         const ticketData: TicketCreateParams = {
           Title: title,
           TypeID: resolvedTypeId,
@@ -218,8 +249,8 @@ export function registerTicketTools(server: McpServer): void {
           StatusID: statusId ?? 0,
           PriorityID: priorityId ?? 0,
           RequestorUid: requestorUid ?? "",
-          Description: description,
-          RequestorEmail: requestorEmail,
+          Description: description ? description + filedByNote : filedByNote || undefined,
+          RequestorEmail: effectiveRequestorEmail,
           ResponsibleUid: responsibleUid,
           ResponsibleGroupID: responsibleGroupId,
           SourceID: sourceId,
@@ -291,21 +322,31 @@ export function registerTicketTools(server: McpServer): void {
     "tdx_tickets_reply",
     {
       title: "Reply to Ticket",
-      description:
-        "Add a reply (feed entry) to a TeamDynamix ticket, optionally changing " +
-        "status and/or reassigning responsibility in the same operation. " +
-        "\n\n" +
-        "IMPORTANT — ATTRIBUTION: All replies are posted via the 'Chatt State " +
-        "Service Desk Assistant' service account because TDX does not support " +
-        "per-user API impersonation. You MUST provide the real name and email " +
-        "of the user requesting this reply. NEVER invent, guess, or use " +
-        "placeholder values for these fields. If you do not know who is making " +
-        "the reply, stop and ask the user before calling this tool. The " +
-        "attribution will be prepended to the comment body so the actual " +
-        "author is recorded in the ticket history." +
-        "\n\n" +
-        "Reassignment (responsibleUid / responsibleGroupId) requires a comment " +
-        "so there is always a human-attributable audit trail for the change.",
+      description: identity
+        ? "Add a reply (feed entry) to a TeamDynamix ticket, optionally changing " +
+          "status and/or reassigning responsibility in the same operation. " +
+          "\n\n" +
+          `ATTRIBUTION: replies are attributed to the verified portal user ` +
+          `(${identity.name}) automatically — do NOT pass actingUserFullName/` +
+          `actingUserEmail, they are ignored. Replies post via the service ` +
+          `account because TDX does not support per-user API impersonation.` +
+          "\n\n" +
+          "Reassignment (responsibleUid / responsibleGroupId) requires a comment " +
+          "so there is always a human-attributable audit trail for the change."
+        : "Add a reply (feed entry) to a TeamDynamix ticket, optionally changing " +
+          "status and/or reassigning responsibility in the same operation. " +
+          "\n\n" +
+          "IMPORTANT — ATTRIBUTION: All replies are posted via the 'Chatt State " +
+          "Service Desk Assistant' service account because TDX does not support " +
+          "per-user API impersonation. You MUST provide the real name and email " +
+          "of the user requesting this reply. NEVER invent, guess, or use " +
+          "placeholder values for these fields. If you do not know who is making " +
+          "the reply, stop and ask the user before calling this tool. The " +
+          "attribution will be prepended to the comment body so the actual " +
+          "author is recorded in the ticket history." +
+          "\n\n" +
+          "Reassignment (responsibleUid / responsibleGroupId) requires a comment " +
+          "so there is always a human-attributable audit trail for the change.",
       inputSchema: {
         ticketId: z
           .number()
@@ -318,19 +359,26 @@ export function registerTicketTools(server: McpServer): void {
           .describe(
             "The reply text. Treated as plain text unless isRichHtml is true.",
           ),
+        // Optional at the schema level; the handler enforces presence when no
+        // verified portal identity exists (a conditional zod shape would give
+        // this tool two different arg types, which the SDK's inference hates).
         actingUserFullName: z
           .string()
-          .min(1, "actingUserFullName must not be empty")
+          .optional()
           .describe(
-            "REQUIRED. Full name of the real user making this reply " +
-              "(e.g., 'Aaron Sachs'). Never fabricate or guess.",
+            identity
+              ? "IGNORED — attribution comes from the verified portal identity."
+              : "REQUIRED. Full name of the real user making this reply " +
+                  "(e.g., 'Aaron Sachs'). Never fabricate or guess.",
           ),
         actingUserEmail: z
           .string()
-          .email("actingUserEmail must be a valid email address")
+          .optional()
           .describe(
-            "REQUIRED. Email address of the real user making this reply. " +
-              "Never fabricate or guess.",
+            identity
+              ? "IGNORED — attribution comes from the verified portal identity."
+              : "REQUIRED. Email address of the real user making this reply. " +
+                  "Never fabricate or guess.",
           ),
         isPrivate: z
           .boolean()
@@ -397,6 +445,25 @@ export function registerTicketTools(server: McpServer): void {
           responsibleGroupId,
         } = args;
 
+        // Resolve attribution: verified portal identity is authoritative and
+        // model-supplied values are ignored when it exists (spoof-proof).
+        // Without it, the model MUST have supplied both fields.
+        const attributedName = identity?.name ?? actingUserFullName;
+        const attributedEmail = identity?.email ?? actingUserEmail;
+        if (!attributedName || !attributedEmail) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text:
+                  "actingUserFullName and actingUserEmail are required: provide the " +
+                  "real name and email of the user making this reply (never guess).",
+              },
+            ],
+            isError: true as const,
+          };
+        }
+
         const reassigning =
           responsibleUid !== undefined || responsibleGroupId !== undefined;
 
@@ -418,8 +485,9 @@ export function registerTicketTools(server: McpServer): void {
         // header as-is (TDX's rich editor renders plain text inside HTML
         // blocks correctly).
         const header = buildAttributionHeader(
-          actingUserFullName,
-          actingUserEmail,
+          attributedName,
+          attributedEmail,
+          identity !== null,
         );
         const reassignmentNote = reassigning
           ? `\n\n[Reassigned via Service Desk Assistant${
@@ -448,7 +516,7 @@ export function registerTicketTools(server: McpServer): void {
 
         const entry = await handlers.addTicketFeedEntry(ticketId, feedParams);
 
-        const actions: string[] = [`replied on behalf of ${actingUserFullName}`];
+        const actions: string[] = [`replied on behalf of ${attributedName}`];
         if (newStatusId !== undefined)
           actions.push(`status changed to ID ${newStatusId}`);
         if (reassigning) actions.push("reassigned");
