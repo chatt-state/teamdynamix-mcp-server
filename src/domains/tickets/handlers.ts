@@ -71,6 +71,61 @@ export async function getTicketPriorities(): Promise<TicketPriority[]> {
   return getTdxClient().tickets.getPriorities();
 }
 
+// ---------------------------------------------------------------------------
+// Default resolvers for ticket creation.
+//
+// TDX requires TypeID, StatusID, PriorityID and a valid AccountID on create;
+// sending 0 (the old fallback) yields "AccountId: 0 does not exist or is
+// invalid" and the model can't discover the numeric ids (the lookups aren't
+// tools and elicitation doesn't work through a stateless HTTP MCP client).
+// These resolve sensible real defaults so create({title, description}) works.
+// ---------------------------------------------------------------------------
+
+/** Active default ticket type — prefers a name containing "default". */
+export async function resolveDefaultTypeId(): Promise<number | undefined> {
+  const types = (await getTicketTypes()).filter((t) => t.IsActive);
+  if (types.length === 0) return undefined;
+  return (types.find((t) => /default/i.test(t.Name)) ?? types[0]).ID;
+}
+
+/** Initial status — prefers "New"/"Open", else the lowest-Order active one. */
+export async function resolveDefaultStatusId(): Promise<number | undefined> {
+  const statuses = (await getTicketStatuses()).filter((s) => s.IsActive);
+  if (statuses.length === 0) return undefined;
+  const preferred =
+    statuses.find((s) => /^(new|open)$/i.test(s.Name)) ??
+    [...statuses].sort((a, b) => (a.Order ?? 9999) - (b.Order ?? 9999))[0];
+  return preferred.ID;
+}
+
+/** Default priority — prefers "Medium"/"Normal", else the middle active one. */
+export async function resolveDefaultPriorityId(): Promise<number | undefined> {
+  const priorities = (await getTicketPriorities()).filter((p) => p.IsActive);
+  if (priorities.length === 0) return undefined;
+  const preferred =
+    priorities.find((p) => /medium|normal/i.test(p.Name)) ??
+    priorities[Math.floor(priorities.length / 2)];
+  return preferred.ID;
+}
+
+/**
+ * Resolve the requestor's TDX account (department) from their email — this is
+ * the ticket's AccountID. Exact email match wins; otherwise the first active
+ * result's default account.
+ */
+export async function resolveRequestorAccountId(email: string): Promise<number | undefined> {
+  if (!email) return undefined;
+  const people = await getTdxClient().people.search({
+    SearchText: email,
+    IsActive: true,
+    MaxResults: 5,
+  });
+  const exact = people.find(
+    (p) => (p.PrimaryEmail ?? "").toLowerCase() === email.toLowerCase(),
+  );
+  return (exact ?? people[0])?.DefaultAccountID;
+}
+
 /**
  * Adds a new feed entry (comment) to a ticket.
  *

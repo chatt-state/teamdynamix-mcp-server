@@ -17,10 +17,12 @@ const mockTickets = {
   getStatuses: vi.fn(),
   getPriorities: vi.fn(),
 };
+const mockPeople = { search: vi.fn() };
 
 vi.mock("../../tdx-client.js", () => ({
   getTdxClient: vi.fn(() => ({
     tickets: mockTickets,
+    people: mockPeople,
   })),
 }));
 
@@ -235,6 +237,15 @@ describe("verified portal identity enforcement", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // create() now resolves TDX-required ids from these lookups when the
+    // model omits them; provide active defaults + a requestor account.
+    mockTickets.getTypes.mockResolvedValue([{ ID: 35, Name: "Default", IsActive: true }]);
+    mockTickets.getStatuses.mockResolvedValue([{ ID: 688, Name: "New", IsActive: true, Order: 1 }]);
+    mockTickets.getPriorities.mockResolvedValue([{ ID: 251, Name: "Medium", IsActive: true }]);
+    mockPeople.search.mockResolvedValue([
+      { PrimaryEmail: "brad.mccormick@example.edu", DefaultAccountID: 2778, IsActive: true },
+      { PrimaryEmail: "jane.doe@example.edu", DefaultAccountID: 2900, IsActive: true },
+    ]);
   });
 
   function getTool(
@@ -326,5 +337,36 @@ describe("verified portal identity enforcement", () => {
     const [ticketData] = mockTickets.create.mock.calls[0];
     expect(ticketData.RequestorEmail).toBe("jane.doe@example.edu");
     expect(ticketData.Description).toContain("[Filed by Brad McCormick");
+  });
+
+  it("create: resolves all required ids from defaults (never sends 0)", async () => {
+    // Regression for the AccountId:0 400 — a bare title+description must
+    // resolve TypeID/StatusID/PriorityID/AccountID to real values.
+    mockTickets.create.mockResolvedValue({ ID: 303, Title: "Wifi is down" });
+
+    const result = (await getTool("tdx_tickets_create", IDENTITY).handler(
+      { title: "Wifi is down", description: "3rd floor." },
+      {},
+    )) as { isError?: boolean };
+
+    expect(result.isError).not.toBe(true);
+    const [t] = mockTickets.create.mock.calls[0];
+    expect(t.TypeID).toBe(35);
+    expect(t.StatusID).toBe(688);
+    expect(t.PriorityID).toBe(251);
+    expect(t.AccountID).toBe(2778); // Brad's default account, via people.search
+    for (const v of [t.TypeID, t.StatusID, t.PriorityID, t.AccountID]) expect(v).not.toBe(0);
+  });
+
+  it("create: clear error when the requestor's account can't be resolved", async () => {
+    mockPeople.search.mockResolvedValue([]); // no match, no accountId given
+    const result = (await getTool("tdx_tickets_create", IDENTITY).handler(
+      { title: "Orphan ticket", description: "x" },
+      {},
+    )) as { isError?: boolean; content: Array<{ text: string }> };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("accountId");
+    expect(mockTickets.create).not.toHaveBeenCalled();
   });
 });

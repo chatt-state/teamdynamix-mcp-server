@@ -9,7 +9,6 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { TicketCreateParams, TicketUpdateParams } from "@chatt-state/node-teamdynamix";
 import { wrapToolHandler } from "../../middleware/error-handler.js";
-import { elicitChoice } from "../../middleware/elicitation.js";
 import type { PortalIdentity } from "../../middleware/portal-identity.js";
 import * as handlers from "./handlers.js";
 import type { TicketFeedEntryParams } from "./handlers.js";
@@ -192,30 +191,6 @@ export function registerTicketTools(
     },
     async (args) => {
       return wrapToolHandler(async () => {
-        let resolvedTypeId: number;
-        if (args.typeId !== undefined) {
-          resolvedTypeId = args.typeId;
-        } else {
-          const types = await handlers.getTicketTypes();
-          const selected = await elicitChoice(
-            "Select a ticket type:",
-            "typeId",
-            "Ticket Type",
-            types.map((t) => ({ id: t.ID, name: t.Name })),
-          );
-          if (selected === null) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: "Ticket type selection is required. Provide typeId or try again.",
-                },
-              ],
-              isError: true as const,
-            };
-          }
-          resolvedTypeId = selected;
-        }
         const {
           title,
           description,
@@ -229,6 +204,7 @@ export function registerTicketTools(
           sourceId,
           formId,
         } = args;
+
         // Verified-identity attribution: TDX's CreatedBy is always the API
         // service account (no impersonation exists), so the requestor and a
         // filer note in the description are how the real human is recorded.
@@ -242,20 +218,63 @@ export function registerTicketTools(
         const filedByNote = identity
           ? `\n\n[Filed by ${identity.name} <${identity.email}> via AI Portal — identity verified]`
           : "";
+
+        // Resolve the four TDX-required numeric ids the model can't discover.
+        // Each is used verbatim when supplied, else defaulted; sending 0 (the
+        // old behavior) 400s with "AccountId: 0 ... invalid".
+        const [resolvedTypeId, resolvedStatusId, resolvedPriorityId] = await Promise.all([
+          args.typeId !== undefined ? Promise.resolve(args.typeId) : handlers.resolveDefaultTypeId(),
+          statusId !== undefined ? Promise.resolve(statusId) : handlers.resolveDefaultStatusId(),
+          priorityId !== undefined ? Promise.resolve(priorityId) : handlers.resolveDefaultPriorityId(),
+        ]);
+        // AccountID is the requestor's department — derive it from the
+        // requestor's email when not supplied explicitly.
+        const resolvedAccountId =
+          accountId ??
+          (effectiveRequestorEmail
+            ? await handlers.resolveRequestorAccountId(effectiveRequestorEmail)
+            : undefined);
+
+        const missing: string[] = [];
+        if (resolvedTypeId === undefined) missing.push("typeId (no active ticket types found)");
+        if (resolvedStatusId === undefined) missing.push("statusId (no active statuses found)");
+        if (resolvedPriorityId === undefined) missing.push("priorityId (no active priorities found)");
+        if (resolvedAccountId === undefined) {
+          missing.push(
+            effectiveRequestorEmail
+              ? `accountId (couldn't resolve a department for ${effectiveRequestorEmail} — pass accountId, or a requestorEmail that matches a TDX person)`
+              : "accountId or requestorEmail (needed to determine the ticket's department)",
+          );
+        }
+        if (missing.length > 0) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Could not create the ticket — unresolved required field(s): ${missing.join("; ")}.`,
+              },
+            ],
+            isError: true as const,
+          };
+        }
+
+        // Build with only real values — never send 0/"" for optional fields.
         const ticketData: TicketCreateParams = {
           Title: title,
-          TypeID: resolvedTypeId,
-          AccountID: accountId ?? 0,
-          StatusID: statusId ?? 0,
-          PriorityID: priorityId ?? 0,
+          TypeID: resolvedTypeId!,
+          AccountID: resolvedAccountId!,
+          StatusID: resolvedStatusId!,
+          PriorityID: resolvedPriorityId!,
+          // Required by TDX; empty is fine — it then matches on RequestorEmail.
           RequestorUid: requestorUid ?? "",
           Description: description ? description + filedByNote : filedByNote || undefined,
-          RequestorEmail: effectiveRequestorEmail,
-          ResponsibleUid: responsibleUid,
-          ResponsibleGroupID: responsibleGroupId,
-          SourceID: sourceId,
-          FormID: formId,
         };
+        if (effectiveRequestorEmail) ticketData.RequestorEmail = effectiveRequestorEmail;
+        if (responsibleUid) ticketData.ResponsibleUid = responsibleUid;
+        if (responsibleGroupId) ticketData.ResponsibleGroupID = responsibleGroupId;
+        if (sourceId) ticketData.SourceID = sourceId;
+        if (formId) ticketData.FormID = formId;
+
         const ticket = await handlers.createTicket(ticketData);
         return {
           content: [
