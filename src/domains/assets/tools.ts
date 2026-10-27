@@ -12,6 +12,13 @@ import type {
   AssetUpdateParams,
 } from "@chatt-state/node-teamdynamix";
 import { wrapToolHandler } from "../../middleware/error-handler.js";
+import type { PortalIdentity } from "../../middleware/portal-identity.js";
+import {
+  actingUserSchema,
+  resolveActor,
+  missingAttributionResult,
+  attributionNote,
+} from "../../middleware/attribution.js";
 import { elicitChoice } from "../../middleware/elicitation.js";
 import * as handlers from "./handlers.js";
 
@@ -19,7 +26,10 @@ import * as handlers from "./handlers.js";
  * Registers all asset-related tools with the MCP server.
  * Tools follow the `tdx_assets_*` naming convention.
  */
-export function registerAssetTools(server: McpServer): void {
+export function registerAssetTools(
+  server: McpServer,
+  identity: PortalIdentity | null = null,
+): void {
   server.registerTool(
     "tdx_assets_search",
     {
@@ -289,23 +299,35 @@ export function registerAssetTools(server: McpServer): void {
     "tdx_assets_delete",
     {
       title: "Delete Asset",
-      description: "Delete a TeamDynamix asset by ID.",
+      description:
+        "Delete a TeamDynamix asset by ID.\n\n" +
+        "ATTRIBUTION REQUIRED: deleting an asset is destructive and runs " +
+        "through the shared TDX service account, so supply the real name and " +
+        "email of the user making the change (never guess) — it is recorded in " +
+        "the confirmation so the deletion is human-attributable.",
       inputSchema: {
         assetId: z
           .number()
           .int()
           .positive()
           .describe("The asset ID to delete"),
+        ...actingUserSchema(identity),
       },
     },
     async (args) => {
       return wrapToolHandler(async () => {
+        const actor = resolveActor(
+          identity,
+          args.actingUserFullName,
+          args.actingUserEmail,
+        );
+        if (!actor) return missingAttributionResult();
         await handlers.deleteAsset(args.assetId);
         return {
           content: [
             {
               type: "text" as const,
-              text: `Asset #${args.assetId} deleted.`,
+              text: `Asset #${args.assetId} deleted.${attributionNote(actor)}`,
             },
           ],
         };

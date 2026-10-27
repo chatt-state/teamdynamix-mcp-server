@@ -21,13 +21,23 @@ import type {
   CIUpdateParams,
 } from "@chatt-state/node-teamdynamix";
 import { wrapToolHandler } from "../../middleware/error-handler.js";
+import type { PortalIdentity } from "../../middleware/portal-identity.js";
+import {
+  actingUserSchema,
+  resolveActor,
+  missingAttributionResult,
+  attributionNote,
+} from "../../middleware/attribution.js";
 import * as handlers from "./handlers.js";
 
 /**
  * Registers all CMDB-related tools with the MCP server.
  * Tools follow the `tdx_cmdb_*` naming convention.
  */
-export function registerCmdbTools(server: McpServer): void {
+export function registerCmdbTools(
+  server: McpServer,
+  identity: PortalIdentity | null = null,
+): void {
   server.registerTool(
     "tdx_cmdb_search",
     {
@@ -190,7 +200,10 @@ export function registerCmdbTools(server: McpServer): void {
     {
       title: "Create Configuration Item",
       description:
-        "Create a new TeamDynamix CMDB configuration item. TypeID and FormID are required — the CMDB app exposes no lookup endpoints for them, so supply the numeric ids directly.",
+        "Create a new TeamDynamix CMDB configuration item. TypeID and FormID are required — the CMDB app exposes no lookup endpoints for them, so supply the numeric ids directly.\n\n" +
+        "ATTRIBUTION REQUIRED: this mutation runs through the shared TDX " +
+        "service account, so supply the real name and email of the user making " +
+        "the change (never guess) — it is recorded in the confirmation.",
       inputSchema: {
         name: z.string().describe("Configuration item name"),
         typeId: z
@@ -215,10 +228,17 @@ export function registerCmdbTools(server: McpServer): void {
           .string()
           .optional()
           .describe("External identifier for integration sources"),
+        ...actingUserSchema(identity),
       },
     },
     async (args) => {
       return wrapToolHandler(async () => {
+        const actor = resolveActor(
+          identity,
+          args.actingUserFullName,
+          args.actingUserEmail,
+        );
+        if (!actor) return missingAttributionResult();
         const ciData: CICreateParams = {
           Name: args.name,
           TypeID: args.typeId,
@@ -233,7 +253,7 @@ export function registerCmdbTools(server: McpServer): void {
           content: [
             {
               type: "text" as const,
-              text: `Configuration item #${ci.ID} created: ${ci.Name}`,
+              text: `Configuration item #${ci.ID} created: ${ci.Name}${attributionNote(actor)}`,
             },
           ],
         };
@@ -245,7 +265,11 @@ export function registerCmdbTools(server: McpServer): void {
     "tdx_cmdb_update",
     {
       title: "Update Configuration Item",
-      description: "Update an existing TeamDynamix CMDB configuration item.",
+      description:
+        "Update an existing TeamDynamix CMDB configuration item.\n\n" +
+        "ATTRIBUTION REQUIRED: this mutation runs through the shared TDX " +
+        "service account, so supply the real name and email of the user making " +
+        "the change (never guess) — it is recorded in the confirmation.",
       inputSchema: {
         ciId: z
           .number()
@@ -258,11 +282,14 @@ export function registerCmdbTools(server: McpServer): void {
         isActive: z.boolean().optional().describe("Updated active state"),
         ownerUid: z.string().optional().describe("Updated owning person UID"),
         externalId: z.string().optional().describe("Updated external identifier"),
+        ...actingUserSchema(identity),
       },
     },
     async (args) => {
       return wrapToolHandler(async () => {
-        const { ciId, ...fields } = args;
+        const { ciId, actingUserFullName, actingUserEmail, ...fields } = args;
+        const actor = resolveActor(identity, actingUserFullName, actingUserEmail);
+        if (!actor) return missingAttributionResult();
         const updateData: CIUpdateParams = {};
         if (fields.name !== undefined) updateData.Name = fields.name;
         if (fields.typeId !== undefined) updateData.TypeID = fields.typeId;
@@ -277,7 +304,7 @@ export function registerCmdbTools(server: McpServer): void {
           content: [
             {
               type: "text" as const,
-              text: `Configuration item #${ci.ID} updated: ${ci.Name}`,
+              text: `Configuration item #${ci.ID} updated: ${ci.Name}${attributionNote(actor)}`,
             },
           ],
         };
@@ -289,23 +316,35 @@ export function registerCmdbTools(server: McpServer): void {
     "tdx_cmdb_delete",
     {
       title: "Delete Configuration Item",
-      description: "Delete a configuration item by ID.",
+      description:
+        "Delete a configuration item by ID.\n\n" +
+        "ATTRIBUTION REQUIRED: deleting a CI is destructive and runs through " +
+        "the shared TDX service account, so supply the real name and email of " +
+        "the user making the change (never guess) — it is recorded in the " +
+        "confirmation so the deletion is human-attributable.",
       inputSchema: {
         ciId: z
           .number()
           .int()
           .positive()
           .describe("Configuration item ID to delete"),
+        ...actingUserSchema(identity),
       },
     },
     async (args) => {
       return wrapToolHandler(async () => {
+        const actor = resolveActor(
+          identity,
+          args.actingUserFullName,
+          args.actingUserEmail,
+        );
+        if (!actor) return missingAttributionResult();
         await handlers.deleteConfigurationItem(args.ciId);
         return {
           content: [
             {
               type: "text" as const,
-              text: `Configuration item #${args.ciId} deleted.`,
+              text: `Configuration item #${args.ciId} deleted.${attributionNote(actor)}`,
             },
           ],
         };
@@ -395,7 +434,10 @@ export function registerCmdbTools(server: McpServer): void {
     {
       title: "Add Configuration Item Attachment",
       description:
-        "Upload a file attachment to a configuration item. Provide the file content as a base64-encoded string.",
+        "Upload a file attachment to a configuration item. Provide the file content as a base64-encoded string.\n\n" +
+        "ATTRIBUTION REQUIRED: this mutation runs through the shared TDX " +
+        "service account, so supply the real name and email of the user making " +
+        "the change (never guess) — it is recorded in the confirmation.",
       inputSchema: {
         ciId: z
           .number()
@@ -406,10 +448,17 @@ export function registerCmdbTools(server: McpServer): void {
         contentBase64: z
           .string()
           .describe("The file content, base64-encoded"),
+        ...actingUserSchema(identity),
       },
     },
     async (args) => {
       return wrapToolHandler(async () => {
+        const actor = resolveActor(
+          identity,
+          args.actingUserFullName,
+          args.actingUserEmail,
+        );
+        if (!actor) return missingAttributionResult();
         const file = Buffer.from(args.contentBase64, "base64");
         const attachment = await handlers.addCIAttachment(
           args.ciId,
@@ -420,7 +469,7 @@ export function registerCmdbTools(server: McpServer): void {
           content: [
             {
               type: "text" as const,
-              text: `Attachment #${attachment.ID} (${attachment.Name}) added to configuration item #${args.ciId}.`,
+              text: `Attachment #${attachment.ID} (${attachment.Name}) added to configuration item #${args.ciId}.${attributionNote(actor)}`,
             },
           ],
         };

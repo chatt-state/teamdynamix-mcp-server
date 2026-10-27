@@ -6,6 +6,7 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { PortalIdentity } from "../middleware/portal-identity.js";
 
 /** All supported domain names. */
 export const DOMAIN_NAMES = [
@@ -28,7 +29,7 @@ export type DomainName = (typeof DOMAIN_NAMES)[number];
 
 /** Interface that each domain module must implement. */
 export interface DomainModule {
-  register(server: McpServer): void;
+  register(server: McpServer, identity?: PortalIdentity | null): void;
 }
 
 /** Maps domain names to their module import paths. */
@@ -64,6 +65,9 @@ const DOMAIN_TOOLS: Record<DomainName, string[]> = {
     "tdx_tickets_get_attachments",
     "tdx_tickets_add_attachment",
     "tdx_tickets_add_tag",
+    "tdx_tickets_get_types",
+    "tdx_tickets_get_statuses",
+    "tdx_tickets_get_priorities",
   ],
   knowledge_base: [
     "tdx_kb_search",
@@ -178,12 +182,22 @@ const DOMAIN_TOOLS: Record<DomainName, string[]> = {
 class DomainRegistry {
   private loadedDomains = new Set<DomainName>();
   private serverRef: McpServer | null = null;
+  private identityRef: PortalIdentity | null = null;
 
   /**
    * Sets the MCP server reference used when registering domain tools.
    */
   setServer(server: McpServer): void {
     this.serverRef = server;
+  }
+
+  /**
+   * Sets the verified portal identity threaded into each domain's register()
+   * so attribution-aware tools can enforce a human-attributable audit trail.
+   * Stdio has no portal header, so this stays null there.
+   */
+  setIdentity(identity: PortalIdentity | null): void {
+    this.identityRef = identity;
   }
 
   /**
@@ -206,7 +220,7 @@ class DomainRegistry {
     }
 
     const domainModule = await this.importDomain(domain);
-    domainModule.register(server);
+    domainModule.register(server, this.identityRef);
     this.loadedDomains.add(domain);
 
     server.sendToolListChanged();
@@ -237,6 +251,7 @@ class DomainRegistry {
   reset(): void {
     this.loadedDomains.clear();
     this.serverRef = null;
+    this.identityRef = null;
   }
 
   /**

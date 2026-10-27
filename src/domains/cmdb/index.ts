@@ -7,9 +7,13 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { PortalIdentity } from "../../middleware/portal-identity.js";
 import { registerCmdbTools } from "./tools.js";
 
 /** Registers CMDB domain tools with the MCP server. */
-export function register(server: McpServer): void {
-  registerCmdbTools(server);
+export function register(
+  server: McpServer,
+  identity: PortalIdentity | null = null,
+): void {
+  registerCmdbTools(server, identity);
 }

@@ -73,9 +73,12 @@ describe("ticket tools registration", () => {
     expect("tdx_tickets_get_attachments" in registeredTools).toBe(true);
     expect("tdx_tickets_add_attachment" in registeredTools).toBe(true);
     expect("tdx_tickets_add_tag" in registeredTools).toBe(true);
+    expect("tdx_tickets_get_types" in registeredTools).toBe(true);
+    expect("tdx_tickets_get_statuses" in registeredTools).toBe(true);
+    expect("tdx_tickets_get_priorities" in registeredTools).toBe(true);
   });
 
-  it("should register exactly 13 ticket tools", () => {
+  it("should register exactly 16 ticket tools", () => {
     const server = new McpServer({
       name: "test-server",
       version: "0.0.1",
@@ -88,7 +91,7 @@ describe("ticket tools registration", () => {
     const ticketTools = Object.keys(registeredTools).filter((name) =>
       name.startsWith("tdx_tickets_"),
     );
-    expect(ticketTools).toHaveLength(13);
+    expect(ticketTools).toHaveLength(16);
   });
 
   it("should match the expected tool names from the domain registry", () => {
@@ -115,6 +118,9 @@ describe("ticket tools registration", () => {
       "tdx_tickets_get_attachments",
       "tdx_tickets_add_attachment",
       "tdx_tickets_add_tag",
+      "tdx_tickets_get_types",
+      "tdx_tickets_get_statuses",
+      "tdx_tickets_get_priorities",
     ];
 
     for (const name of expectedNames) {
@@ -392,6 +398,40 @@ describe("verified portal identity enforcement", () => {
     expect(result.content[0].text).toContain("accountId");
     expect(mockTickets.create).not.toHaveBeenCalled();
   });
+
+  it("create: requestor with DefaultAccountID 0 is treated as unresolved (no AccountId:0 400)", async () => {
+    // Regression: TDX returns DefaultAccountID = 0 for people with no default
+    // account (students/contacts/new users). 0 must NOT flow through as a
+    // resolved AccountID — it reproduces the "AccountId: 0 ... invalid" 400.
+    mockPeople.search.mockResolvedValue([
+      { PrimaryEmail: "brad.mccormick@example.edu", DefaultAccountID: 0, IsActive: true },
+    ]);
+
+    const result = (await getTool("tdx_tickets_create", IDENTITY).handler(
+      { title: "No-account requestor", description: "x" },
+      {},
+    )) as { isError?: boolean; content: Array<{ text: string }> };
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("accountId");
+    expect(mockTickets.create).not.toHaveBeenCalled();
+  });
+
+  it("create: explicit accountId is used verbatim even when lookup returns 0", async () => {
+    mockPeople.search.mockResolvedValue([
+      { PrimaryEmail: "brad.mccormick@example.edu", DefaultAccountID: 0, IsActive: true },
+    ]);
+    mockTickets.create.mockResolvedValue({ ID: 304, Title: "Explicit account" });
+
+    const result = (await getTool("tdx_tickets_create", IDENTITY).handler(
+      { title: "Explicit account", description: "x", accountId: 2778 },
+      {},
+    )) as { isError?: boolean };
+
+    expect(result.isError).not.toBe(true);
+    const [t] = mockTickets.create.mock.calls[0];
+    expect(t.AccountID).toBe(2778);
+  });
 });
 
 describe("full-coverage ticket tools", () => {
@@ -624,6 +664,57 @@ describe("full-coverage ticket tools", () => {
 
       expect(mockTickets.addTag).toHaveBeenCalledWith(42, "hardware");
       expect(result.content[0].text).toContain('tag "hardware" added');
+    });
+  });
+
+  describe("tdx_tickets_get_types", () => {
+    it("lists active types with IDs by default", async () => {
+      mockTickets.getTypes.mockResolvedValue([
+        { ID: 10, Name: "Incident", IsActive: true },
+        { ID: 11, Name: "Service Request", IsActive: true },
+        { ID: 12, Name: "Retired", IsActive: false },
+      ]);
+
+      const result = await invoke("tdx_tickets_get_types", {});
+
+      expect(result.content[0].text).toContain("#10 Incident");
+      expect(result.content[0].text).toContain("#11 Service Request");
+      expect(result.content[0].text).not.toContain("Retired");
+    });
+
+    it("includes inactive types when activeOnly is false", async () => {
+      mockTickets.getTypes.mockResolvedValue([
+        { ID: 12, Name: "Retired", IsActive: false },
+      ]);
+
+      const result = await invoke("tdx_tickets_get_types", { activeOnly: false });
+      expect(result.content[0].text).toContain("#12 Retired (inactive)");
+    });
+  });
+
+  describe("tdx_tickets_get_statuses", () => {
+    it("lists active statuses with IDs", async () => {
+      mockTickets.getStatuses.mockResolvedValue([
+        { ID: 20, Name: "New", IsActive: true, Order: 1 },
+        { ID: 21, Name: "Resolved", IsActive: true, Order: 9 },
+      ]);
+
+      const result = await invoke("tdx_tickets_get_statuses", {});
+      expect(result.content[0].text).toContain("#20 New");
+      expect(result.content[0].text).toContain("#21 Resolved");
+    });
+  });
+
+  describe("tdx_tickets_get_priorities", () => {
+    it("lists active priorities with IDs", async () => {
+      mockTickets.getPriorities.mockResolvedValue([
+        { ID: 30, Name: "Low", IsActive: true },
+        { ID: 31, Name: "Medium", IsActive: true },
+      ]);
+
+      const result = await invoke("tdx_tickets_get_priorities", {});
+      expect(result.content[0].text).toContain("#30 Low");
+      expect(result.content[0].text).toContain("#31 Medium");
     });
   });
 });

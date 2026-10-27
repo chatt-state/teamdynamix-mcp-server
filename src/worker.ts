@@ -18,8 +18,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { getConfig, resetConfig } from "./config.js";
 import { randomUUID } from "node:crypto";
-// Static import so Wrangler's bundler can resolve it (dynamic import() fails in Workers)
-import { register as registerTickets } from "./domains/tickets/index.js";
+// Static import so Wrangler's bundler can resolve the full domain surface —
+// dynamic import() (used by the stdio registry) is unavailable in Workers.
+import { registerAllDomains } from "./domains/register-all.js";
 import {
   PortalIdentityError,
   verifyPortalIdentity,
@@ -261,7 +262,10 @@ async function dispatchMcp(request: Request, identity: PortalIdentity | null): P
   );
   // Stateless mode builds a fresh server per request, so the verified
   // identity can shape tool registration (schemas + enforced attribution).
-  registerTickets(server, identity);
+  // Register the FULL domain surface (not just tickets) so the hosted
+  // claude.ai connector is full-featured end-to-end; Workers can't use the
+  // stdio registry's dynamic import(), hence static registration here.
+  registerAllDomains(server, identity);
 
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined, // stateless: validateSession() is a no-op

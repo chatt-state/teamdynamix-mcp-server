@@ -14,6 +14,13 @@ import type {
   LocationRoomUpdateParams,
 } from "@chatt-state/node-teamdynamix";
 import { wrapToolHandler } from "../../middleware/error-handler.js";
+import type { PortalIdentity } from "../../middleware/portal-identity.js";
+import {
+  actingUserSchema,
+  resolveActor,
+  missingAttributionResult,
+  attributionNote,
+} from "../../middleware/attribution.js";
 import { elicitChoice } from "../../middleware/elicitation.js";
 import * as handlers from "./handlers.js";
 
@@ -50,7 +57,10 @@ const locationRequiredError = {
  * Registers all location-related tools with the MCP server.
  * Tools follow the `tdx_locations_*` naming convention.
  */
-export function registerLocationTools(server: McpServer): void {
+export function registerLocationTools(
+  server: McpServer,
+  identity: PortalIdentity | null = null,
+): void {
   server.registerTool(
     "tdx_locations_search",
     {
@@ -393,7 +403,12 @@ export function registerLocationTools(server: McpServer): void {
     "tdx_locations_delete_room",
     {
       title: "Delete Location Room",
-      description: "Delete a room from a location.",
+      description:
+        "Delete a room from a location.\n\n" +
+        "ATTRIBUTION REQUIRED: deleting a room is destructive and runs through " +
+        "the shared TDX service account, so supply the real name and email of " +
+        "the user making the change (never guess) — it is recorded in the " +
+        "confirmation so the deletion is human-attributable.",
       inputSchema: {
         locationId: z
           .number()
@@ -406,10 +421,17 @@ export function registerLocationTools(server: McpServer): void {
           .int()
           .positive()
           .describe("Room ID to delete"),
+        ...actingUserSchema(identity),
       },
     },
     async (args) => {
       return wrapToolHandler(async () => {
+        const actor = resolveActor(
+          identity,
+          args.actingUserFullName,
+          args.actingUserEmail,
+        );
+        if (!actor) return missingAttributionResult();
         const locationId = await resolveLocationId(args.locationId);
         if (locationId === null) return locationRequiredError;
         await handlers.deleteRoom(locationId, args.roomId);
@@ -417,7 +439,7 @@ export function registerLocationTools(server: McpServer): void {
           content: [
             {
               type: "text" as const,
-              text: `Room #${args.roomId} deleted from location #${locationId}.`,
+              text: `Room #${args.roomId} deleted from location #${locationId}.${attributionNote(actor)}`,
             },
           ],
         };

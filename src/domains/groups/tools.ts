@@ -14,6 +14,13 @@ import type {
 } from "@chatt-state/node-teamdynamix";
 import { wrapToolHandler } from "../../middleware/error-handler.js";
 import { elicitChoice } from "../../middleware/elicitation.js";
+import type { PortalIdentity } from "../../middleware/portal-identity.js";
+import {
+  actingUserSchema,
+  resolveActor,
+  missingAttributionResult,
+  attributionNote,
+} from "../../middleware/attribution.js";
 import * as handlers from "./handlers.js";
 
 /**
@@ -56,7 +63,10 @@ function groupRequiredError(): {
  * Registers all group-related tools with the MCP server.
  * Tools follow the `tdx_groups_*` naming convention.
  */
-export function registerGroupTools(server: McpServer): void {
+export function registerGroupTools(
+  server: McpServer,
+  identity: PortalIdentity | null = null,
+): void {
   server.registerTool(
     "tdx_groups_search",
     {
@@ -265,7 +275,12 @@ export function registerGroupTools(server: McpServer): void {
     {
       title: "Add Group Member",
       description:
-        "Add a person to a group by their user UID. Group membership drives ticket routing/assignment.",
+        "Add a person to a group by their user UID. Group membership drives " +
+        "ticket routing/assignment.\n\n" +
+        "ATTRIBUTION REQUIRED: this mutation runs through the shared TDX " +
+        "service account, so supply the real name and email of the user making " +
+        "the change (never guess) — it is recorded in the confirmation so the " +
+        "change is human-attributable.",
       inputSchema: {
         uid: z
           .string()
@@ -280,10 +295,17 @@ export function registerGroupTools(server: McpServer): void {
           .boolean()
           .optional()
           .describe("Whether this is the member's primary group"),
+        ...actingUserSchema(identity),
       },
     },
     async (args) => {
       return wrapToolHandler(async () => {
+        const actor = resolveActor(
+          identity,
+          args.actingUserFullName,
+          args.actingUserEmail,
+        );
+        if (!actor) return missingAttributionResult();
         const resolvedGroupId = await resolveGroupId(args.groupId);
         if (resolvedGroupId === null) {
           return groupRequiredError();
@@ -297,7 +319,7 @@ export function registerGroupTools(server: McpServer): void {
           content: [
             {
               type: "text" as const,
-              text: `User ${args.uid} added to group #${resolvedGroupId}.`,
+              text: `User ${args.uid} added to group #${resolvedGroupId}.${attributionNote(actor)}`,
             },
           ],
         };
@@ -309,7 +331,12 @@ export function registerGroupTools(server: McpServer): void {
     "tdx_groups_remove_member",
     {
       title: "Remove Group Member",
-      description: "Remove a person from a group by their user UID.",
+      description:
+        "Remove a person from a group by their user UID.\n\n" +
+        "ATTRIBUTION REQUIRED: this mutation runs through the shared TDX " +
+        "service account, so supply the real name and email of the user making " +
+        "the change (never guess) — it is recorded in the confirmation so the " +
+        "change is human-attributable.",
       inputSchema: {
         uid: z
           .string()
@@ -320,10 +347,17 @@ export function registerGroupTools(server: McpServer): void {
           .positive()
           .optional()
           .describe("Group ID — omit to select interactively"),
+        ...actingUserSchema(identity),
       },
     },
     async (args) => {
       return wrapToolHandler(async () => {
+        const actor = resolveActor(
+          identity,
+          args.actingUserFullName,
+          args.actingUserEmail,
+        );
+        if (!actor) return missingAttributionResult();
         const resolvedGroupId = await resolveGroupId(args.groupId);
         if (resolvedGroupId === null) {
           return groupRequiredError();
@@ -333,7 +367,7 @@ export function registerGroupTools(server: McpServer): void {
           content: [
             {
               type: "text" as const,
-              text: `User ${args.uid} removed from group #${resolvedGroupId}.`,
+              text: `User ${args.uid} removed from group #${resolvedGroupId}.${attributionNote(actor)}`,
             },
           ],
         };

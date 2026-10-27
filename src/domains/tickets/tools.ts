@@ -179,13 +179,20 @@ export function registerTicketTools(
         typeId: z
           .number()
           .int()
+          .positive()
           .optional()
-          .describe("Ticket type ID — omit to select interactively"),
-        statusId: z.number().int().optional().describe("Status ID"),
-        priorityId: z.number().int().optional().describe("Priority ID"),
+          .describe(
+            "Ticket type ID. When omitted, defaults to a server-selected " +
+              "active type (prefers one named 'default'). Use " +
+              "tdx_tickets_get_types to pick a specific type — there is no " +
+              "interactive prompt over the HTTP connector.",
+          ),
+        statusId: z.number().int().positive().optional().describe("Status ID (see tdx_tickets_get_statuses)"),
+        priorityId: z.number().int().positive().optional().describe("Priority ID (see tdx_tickets_get_priorities)"),
         accountId: z
           .number()
           .int()
+          .positive()
           .optional()
           .describe("Department/account ID"),
         requestorEmail: z
@@ -256,7 +263,9 @@ export function registerTicketTools(
         if (resolvedTypeId === undefined) missing.push("typeId (no active ticket types found)");
         if (resolvedStatusId === undefined) missing.push("statusId (no active statuses found)");
         if (resolvedPriorityId === undefined) missing.push("priorityId (no active priorities found)");
-        if (resolvedAccountId === undefined) {
+        // Treat a falsy AccountID (0/undefined) as unresolved — TDX 400s on
+        // AccountId:0, so it must never reach create() as a "resolved" value.
+        if (!resolvedAccountId) {
           missing.push(
             effectiveRequestorEmail
               ? `accountId (couldn't resolve a department for ${effectiveRequestorEmail} — pass accountId, or a requestorEmail that matches a TDX person)`
@@ -974,6 +983,128 @@ export function registerTicketTools(
             {
               type: "text" as const,
               text: `Ticket #${args.ticketId}: tag "${args.tag}" added.`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // Lookup tools — resolve the numeric type/status/priority IDs that search,
+  // create, update and reply all require. Without these the model has no way
+  // to turn a name like "Resolved" or "In Process" into the ID the API needs.
+  // ---------------------------------------------------------------------------
+
+  server.registerTool(
+    "tdx_tickets_get_types",
+    {
+      title: "Get Ticket Types",
+      description:
+        "List the ticket types for the configured application, with their IDs. " +
+        "Use the ID with tdx_tickets_create/update (typeId) or search (typeIds).",
+      inputSchema: {
+        activeOnly: z
+          .boolean()
+          .optional()
+          .describe("If true (default), list only active types."),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const activeOnly = args.activeOnly ?? true;
+        const types = (await handlers.getTicketTypes()).filter(
+          (t) => !activeOnly || t.IsActive,
+        );
+        const summary = types
+          .map((t) => `#${t.ID} ${t.Name}${t.IsActive ? "" : " (inactive)"}`)
+          .join("\n");
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text:
+                types.length === 0
+                  ? "No ticket types found."
+                  : `${types.length} ticket type(s):\n\n${summary}`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_tickets_get_statuses",
+    {
+      title: "Get Ticket Statuses",
+      description:
+        "List the ticket statuses for the configured application, with their IDs. " +
+        "Use the ID with tdx_tickets_update (statusId), tdx_tickets_reply " +
+        "(newStatusId) or search (statusIds).",
+      inputSchema: {
+        activeOnly: z
+          .boolean()
+          .optional()
+          .describe("If true (default), list only active statuses."),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const activeOnly = args.activeOnly ?? true;
+        const statuses = (await handlers.getTicketStatuses()).filter(
+          (s) => !activeOnly || s.IsActive,
+        );
+        const summary = statuses
+          .map((s) => `#${s.ID} ${s.Name}${s.IsActive ? "" : " (inactive)"}`)
+          .join("\n");
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text:
+                statuses.length === 0
+                  ? "No ticket statuses found."
+                  : `${statuses.length} ticket status(es):\n\n${summary}`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_tickets_get_priorities",
+    {
+      title: "Get Ticket Priorities",
+      description:
+        "List the ticket priorities for the configured application, with their " +
+        "IDs. Use the ID with tdx_tickets_create/update (priorityId) or search " +
+        "(priorityIds).",
+      inputSchema: {
+        activeOnly: z
+          .boolean()
+          .optional()
+          .describe("If true (default), list only active priorities."),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const activeOnly = args.activeOnly ?? true;
+        const priorities = (await handlers.getTicketPriorities()).filter(
+          (p) => !activeOnly || p.IsActive,
+        );
+        const summary = priorities
+          .map((p) => `#${p.ID} ${p.Name}${p.IsActive ? "" : " (inactive)"}`)
+          .join("\n");
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text:
+                priorities.length === 0
+                  ? "No ticket priorities found."
+                  : `${priorities.length} ticket priorit(ies):\n\n${summary}`,
             },
           ],
         };

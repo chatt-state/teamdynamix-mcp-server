@@ -13,6 +13,13 @@ import type {
   PersonUpdateParams,
 } from "@chatt-state/node-teamdynamix";
 import { wrapToolHandler } from "../../middleware/error-handler.js";
+import type { PortalIdentity } from "../../middleware/portal-identity.js";
+import {
+  actingUserSchema,
+  resolveActor,
+  missingAttributionResult,
+  attributionNote,
+} from "../../middleware/attribution.js";
 import * as handlers from "./handlers.js";
 
 /** Loose shape of a user-group record as returned by the people/groups API. */
@@ -29,7 +36,10 @@ interface PersonGroupRecord {
  * Registers all people-related tools with the MCP server.
  * Tools follow the `tdx_people_*` naming convention.
  */
-export function registerPeopleTools(server: McpServer): void {
+export function registerPeopleTools(
+  server: McpServer,
+  identity: PortalIdentity | null = null,
+): void {
   server.registerTool(
     "tdx_people_search",
     {
@@ -183,7 +193,12 @@ export function registerPeopleTools(server: McpServer): void {
     "tdx_people_add_to_group",
     {
       title: "Add Person to Group",
-      description: "Add a person to a group by person UID and group ID.",
+      description:
+        "Add a person to a group by person UID and group ID.\n\n" +
+        "ATTRIBUTION REQUIRED: this mutation runs through the shared TDX " +
+        "service account, so supply the real name and email of the user making " +
+        "the change (never guess) — it is recorded in the confirmation so the " +
+        "change is human-attributable.",
       inputSchema: {
         uid: z
           .string()
@@ -193,16 +208,23 @@ export function registerPeopleTools(server: McpServer): void {
           .int()
           .positive()
           .describe("The group ID to add the person to"),
+        ...actingUserSchema(identity),
       },
     },
     async (args) => {
       return wrapToolHandler(async () => {
+        const actor = resolveActor(
+          identity,
+          args.actingUserFullName,
+          args.actingUserEmail,
+        );
+        if (!actor) return missingAttributionResult();
         await handlers.addPersonToGroup(args.uid, args.groupId);
         return {
           content: [
             {
               type: "text" as const,
-              text: `Person ${args.uid} added to group #${args.groupId}.`,
+              text: `Person ${args.uid} added to group #${args.groupId}.${attributionNote(actor)}`,
             },
           ],
         };
@@ -214,7 +236,12 @@ export function registerPeopleTools(server: McpServer): void {
     "tdx_people_remove_from_group",
     {
       title: "Remove Person from Group",
-      description: "Remove a person from a group by person UID and group ID.",
+      description:
+        "Remove a person from a group by person UID and group ID.\n\n" +
+        "ATTRIBUTION REQUIRED: this mutation runs through the shared TDX " +
+        "service account, so supply the real name and email of the user making " +
+        "the change (never guess) — it is recorded in the confirmation so the " +
+        "change is human-attributable.",
       inputSchema: {
         uid: z
           .string()
@@ -224,16 +251,23 @@ export function registerPeopleTools(server: McpServer): void {
           .int()
           .positive()
           .describe("The group ID to remove the person from"),
+        ...actingUserSchema(identity),
       },
     },
     async (args) => {
       return wrapToolHandler(async () => {
+        const actor = resolveActor(
+          identity,
+          args.actingUserFullName,
+          args.actingUserEmail,
+        );
+        if (!actor) return missingAttributionResult();
         await handlers.removePersonFromGroup(args.uid, args.groupId);
         return {
           content: [
             {
               type: "text" as const,
-              text: `Person ${args.uid} removed from group #${args.groupId}.`,
+              text: `Person ${args.uid} removed from group #${args.groupId}.${attributionNote(actor)}`,
             },
           ],
         };
@@ -246,7 +280,12 @@ export function registerPeopleTools(server: McpServer): void {
     {
       title: "Set Person Active Status",
       description:
-        "Deactivate or reactivate a person by UID. Set isActive=false to deactivate, true to reactivate.",
+        "Deactivate or reactivate a person by UID. Set isActive=false to " +
+        "deactivate, true to reactivate.\n\n" +
+        "ATTRIBUTION REQUIRED: deactivating a person is destructive and runs " +
+        "through the shared TDX service account, so supply the real name and " +
+        "email of the user making the change (never guess) — it is recorded in " +
+        "the confirmation so the change is human-attributable (FERPA).",
       inputSchema: {
         uid: z
           .string()
@@ -254,16 +293,23 @@ export function registerPeopleTools(server: McpServer): void {
         isActive: z
           .boolean()
           .describe("true to reactivate, false to deactivate"),
+        ...actingUserSchema(identity),
       },
     },
     async (args) => {
       return wrapToolHandler(async () => {
+        const actor = resolveActor(
+          identity,
+          args.actingUserFullName,
+          args.actingUserEmail,
+        );
+        if (!actor) return missingAttributionResult();
         await handlers.setPersonActive(args.uid, args.isActive);
         return {
           content: [
             {
               type: "text" as const,
-              text: `Person ${args.uid} ${args.isActive ? "reactivated" : "deactivated"}.`,
+              text: `Person ${args.uid} ${args.isActive ? "reactivated" : "deactivated"}.${attributionNote(actor)}`,
             },
           ],
         };
@@ -276,7 +322,13 @@ export function registerPeopleTools(server: McpServer): void {
     {
       title: "Create Person",
       description:
-        "Create a new person (user or contact). Requires first name, last name, and primary email.",
+        "Create a new person (user or contact). Requires first name, last " +
+        "name, and primary email.\n\n" +
+        "ATTRIBUTION REQUIRED: this creates a directory record through the " +
+        "shared TDX service account, so supply the real name and email of the " +
+        "user making the change (never guess) — it is recorded in the " +
+        "confirmation. NOTE: securityRoleId grants privileges; setting it is a " +
+        "privileged change — only do so on explicit request.",
       inputSchema: {
         firstName: z.string().describe("First name"),
         lastName: z.string().describe("Last name"),
@@ -306,11 +358,21 @@ export function registerPeopleTools(server: McpServer): void {
         securityRoleId: z
           .string()
           .optional()
-          .describe("Security role ID (GUID)"),
+          .describe(
+            "Security role ID (GUID). PRIVILEGED: grants access rights — " +
+              "only set on explicit request.",
+          ),
+        ...actingUserSchema(identity),
       },
     },
     async (args) => {
       return wrapToolHandler(async () => {
+        const actor = resolveActor(
+          identity,
+          args.actingUserFullName,
+          args.actingUserEmail,
+        );
+        if (!actor) return missingAttributionResult();
         const data: PersonCreateParams = {
           FirstName: args.firstName,
           LastName: args.lastName,
@@ -329,7 +391,7 @@ export function registerPeopleTools(server: McpServer): void {
           content: [
             {
               type: "text" as const,
-              text: `Person created: ${person.UID} — ${person.FullName ?? `${person.FirstName} ${person.LastName}`} (${person.PrimaryEmail ?? "no email"})`,
+              text: `Person created: ${person.UID} — ${person.FullName ?? `${person.FirstName} ${person.LastName}`} (${person.PrimaryEmail ?? "no email"})${attributionNote(actor)}`,
             },
           ],
         };
@@ -342,7 +404,14 @@ export function registerPeopleTools(server: McpServer): void {
     {
       title: "Update Person",
       description:
-        "Update an existing person by UID. Only the fields you provide are changed.",
+        "Update an existing person by UID. Only the fields you provide are " +
+        "changed.\n\n" +
+        "ATTRIBUTION REQUIRED: this mutates a directory record through the " +
+        "shared TDX service account, so supply the real name and email of the " +
+        "user making the change (never guess) — it is recorded in the " +
+        "confirmation. NOTE: securityRoleId and isActive are privileged — a " +
+        "securityRoleId change raises/lowers access rights; only set on " +
+        "explicit request.",
       inputSchema: {
         uid: z
           .string()
@@ -357,7 +426,7 @@ export function registerPeopleTools(server: McpServer): void {
         isActive: z
           .boolean()
           .optional()
-          .describe("Updated active status"),
+          .describe("Updated active status (privileged)"),
         isEmployee: z
           .boolean()
           .optional()
@@ -371,12 +440,18 @@ export function registerPeopleTools(server: McpServer): void {
         securityRoleId: z
           .string()
           .optional()
-          .describe("Updated security role ID (GUID)"),
+          .describe(
+            "Updated security role ID (GUID). PRIVILEGED: changes access " +
+              "rights — only set on explicit request.",
+          ),
+        ...actingUserSchema(identity),
       },
     },
     async (args) => {
       return wrapToolHandler(async () => {
-        const { uid, ...fields } = args;
+        const { uid, actingUserFullName, actingUserEmail, ...fields } = args;
+        const actor = resolveActor(identity, actingUserFullName, actingUserEmail);
+        if (!actor) return missingAttributionResult();
         const data: PersonUpdateParams = {};
         if (fields.firstName !== undefined) data.FirstName = fields.firstName;
         if (fields.lastName !== undefined) data.LastName = fields.lastName;
@@ -395,7 +470,7 @@ export function registerPeopleTools(server: McpServer): void {
           content: [
             {
               type: "text" as const,
-              text: `Person ${person.UID} updated.`,
+              text: `Person ${person.UID} updated.${attributionNote(actor)}`,
             },
           ],
         };

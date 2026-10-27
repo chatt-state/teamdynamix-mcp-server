@@ -124,7 +124,12 @@ export async function resolveRequestorAccountId(email: string): Promise<number |
   const exact = people.find(
     (p) => (p.PrimaryEmail ?? "").toLowerCase() === email.toLowerCase(),
   );
-  return (exact ?? people[0])?.DefaultAccountID;
+  // TDX returns DefaultAccountID = 0 for people with no default account
+  // (common for students, contacts, and newly-created users). Sending 0 as
+  // the ticket AccountID 400s with "AccountId: 0 does not exist or is
+  // invalid", so treat 0/falsy as unresolved rather than a usable value.
+  const id = (exact ?? people[0])?.DefaultAccountID;
+  return id && id > 0 ? id : undefined;
 }
 
 /**
