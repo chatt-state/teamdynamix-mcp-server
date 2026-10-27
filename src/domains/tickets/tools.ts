@@ -14,6 +14,23 @@ import * as handlers from "./handlers.js";
 import type { TicketFeedEntryParams } from "./handlers.js";
 
 /**
+ * Minimal projections of the TDX task/contact shapes. The SDK returns these
+ * endpoints untyped (`unknown[]`), so the tool layer probes just the fields it
+ * renders in the compact summary.
+ */
+interface TicketTaskSummary {
+  ID?: number;
+  Title?: string;
+  StatusName?: string;
+  PercentComplete?: number;
+}
+interface TicketContactSummary {
+  UID?: string;
+  FullName?: string;
+  PrimaryEmail?: string;
+}
+
+/**
  * Builds the mandatory attribution header prepended to every MCP-originated
  * ticket reply. The service account in TDX is "Chatt State Service Desk
  * Assistant" — the CreatedBy field will always show that account, so we
@@ -545,6 +562,418 @@ export function registerTicketTools(
             {
               type: "text" as const,
               text: `Ticket #${ticketId}: ${actions.join(", ")}. Feed entry #${entry.ID} posted.`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_tickets_get_feed",
+    {
+      title: "Get Ticket Feed",
+      description:
+        "Read a ticket's activity feed (comments and status updates). Read-only " +
+        "— use tdx_tickets_reply to post a new feed entry.",
+      inputSchema: {
+        ticketId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Ticket ID whose feed to read"),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const feed = await handlers.getTicketFeed(args.ticketId);
+        const summary = feed
+          .map((e) => {
+            const snippet = e.Comments.replace(/\s+/g, " ").trim().slice(0, 140);
+            return `#${e.ID} [${e.CreatedDate}] ${e.CreatedFullName}${
+              e.IsPrivate ? " (private)" : ""
+            }: ${snippet}`;
+          })
+          .join("\n");
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text:
+                feed.length === 0
+                  ? `Ticket #${args.ticketId} has no feed entries.`
+                  : `Ticket #${args.ticketId} feed (${feed.length} entr${
+                      feed.length === 1 ? "y" : "ies"
+                    }):\n\n${summary}`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_tickets_get_tasks",
+    {
+      title: "Get Ticket Tasks",
+      description: "List the tasks and activities on a ticket. Read-only.",
+      inputSchema: {
+        ticketId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Ticket ID whose tasks to list"),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const tasks = (await handlers.getTicketTasks(
+          args.ticketId,
+        )) as TicketTaskSummary[];
+        const summary = tasks
+          .map(
+            (t) =>
+              `#${t.ID ?? "?"} ${t.Title ?? "(untitled)"}${
+                t.StatusName ? ` [${t.StatusName}]` : ""
+              }${
+                t.PercentComplete !== undefined
+                  ? ` — ${t.PercentComplete}% complete`
+                  : ""
+              }`,
+          )
+          .join("\n");
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text:
+                tasks.length === 0
+                  ? `Ticket #${args.ticketId} has no tasks.`
+                  : `Ticket #${args.ticketId} tasks (${tasks.length}):\n\n${summary}`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_tickets_get_contacts",
+    {
+      title: "Get Ticket Contacts",
+      description: "List the additional contacts on a ticket. Read-only.",
+      inputSchema: {
+        ticketId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Ticket ID whose contacts to list"),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const contacts = (await handlers.getTicketContacts(
+          args.ticketId,
+        )) as TicketContactSummary[];
+        const summary = contacts
+          .map(
+            (c) =>
+              `${c.FullName ?? "(unknown)"}${
+                c.PrimaryEmail ? ` <${c.PrimaryEmail}>` : ""
+              }${c.UID ? ` [UID ${c.UID}]` : ""}`,
+          )
+          .join("\n");
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text:
+                contacts.length === 0
+                  ? `Ticket #${args.ticketId} has no additional contacts.`
+                  : `Ticket #${args.ticketId} contacts (${contacts.length}):\n\n${summary}`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_tickets_add_contact",
+    {
+      title: "Add Ticket Contact",
+      description: identity
+        ? `Add an additional contact (by UID) to a ticket. The change is ` +
+          `recorded in the ticket feed, attributed to the verified portal user ` +
+          `(${identity.name}); actingUser* args are ignored.`
+        : "Add an additional contact (by UID) to a ticket.\n\n" +
+          "ATTRIBUTION REQUIRED: supply the real name and email of the user " +
+          "making this change (never guess). It is recorded as a private feed " +
+          "entry so the change has a human-attributable audit trail, because " +
+          "TDX does not support per-user API impersonation.",
+      inputSchema: {
+        ticketId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Ticket ID to add the contact to"),
+        contactUid: z
+          .string()
+          .min(1, "contactUid must not be empty")
+          .describe(
+            "UID (Guid) of the person to add. Use tdx_people_search to look up UIDs.",
+          ),
+        actingUserFullName: z
+          .string()
+          .optional()
+          .describe(
+            identity
+              ? "IGNORED — attribution comes from the verified portal identity."
+              : "REQUIRED. Full name of the real user making this change. Never fabricate or guess.",
+          ),
+        actingUserEmail: z
+          .string()
+          .optional()
+          .describe(
+            identity
+              ? "IGNORED — attribution comes from the verified portal identity."
+              : "REQUIRED. Email of the real user making this change. Never fabricate or guess.",
+          ),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const attributedName = identity?.name ?? args.actingUserFullName;
+        const attributedEmail = identity?.email ?? args.actingUserEmail;
+        if (!attributedName || !attributedEmail) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text:
+                  "actingUserFullName and actingUserEmail are required: provide the " +
+                  "real name and email of the user making this change (never guess).",
+              },
+            ],
+            isError: true as const,
+          };
+        }
+        await handlers.addTicketContact(args.ticketId, args.contactUid);
+        const verifiedSuffix =
+          identity !== null ? " — identity verified by AI Portal" : "";
+        await handlers.addTicketFeedEntry(args.ticketId, {
+          Comments: `[Contact ${args.contactUid} added to ticket by ${attributedName} <${attributedEmail}> via Service Desk Assistant${verifiedSuffix}]`,
+          IsPrivate: true,
+        });
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Ticket #${args.ticketId}: contact ${args.contactUid} added (recorded for ${attributedName}).`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_tickets_remove_contact",
+    {
+      title: "Remove Ticket Contact",
+      description: identity
+        ? `Remove an additional contact (by UID) from a ticket. The change is ` +
+          `recorded in the ticket feed, attributed to the verified portal user ` +
+          `(${identity.name}); actingUser* args are ignored.`
+        : "Remove an additional contact (by UID) from a ticket.\n\n" +
+          "ATTRIBUTION REQUIRED: supply the real name and email of the user " +
+          "making this change (never guess). It is recorded as a private feed " +
+          "entry so the change has a human-attributable audit trail, because " +
+          "TDX does not support per-user API impersonation.",
+      inputSchema: {
+        ticketId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Ticket ID to remove the contact from"),
+        contactUid: z
+          .string()
+          .min(1, "contactUid must not be empty")
+          .describe(
+            "UID (Guid) of the person to remove. Use tdx_tickets_get_contacts to list current contacts.",
+          ),
+        actingUserFullName: z
+          .string()
+          .optional()
+          .describe(
+            identity
+              ? "IGNORED — attribution comes from the verified portal identity."
+              : "REQUIRED. Full name of the real user making this change. Never fabricate or guess.",
+          ),
+        actingUserEmail: z
+          .string()
+          .optional()
+          .describe(
+            identity
+              ? "IGNORED — attribution comes from the verified portal identity."
+              : "REQUIRED. Email of the real user making this change. Never fabricate or guess.",
+          ),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const attributedName = identity?.name ?? args.actingUserFullName;
+        const attributedEmail = identity?.email ?? args.actingUserEmail;
+        if (!attributedName || !attributedEmail) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text:
+                  "actingUserFullName and actingUserEmail are required: provide the " +
+                  "real name and email of the user making this change (never guess).",
+              },
+            ],
+            isError: true as const,
+          };
+        }
+        await handlers.removeTicketContact(args.ticketId, args.contactUid);
+        const verifiedSuffix =
+          identity !== null ? " — identity verified by AI Portal" : "";
+        await handlers.addTicketFeedEntry(args.ticketId, {
+          Comments: `[Contact ${args.contactUid} removed from ticket by ${attributedName} <${attributedEmail}> via Service Desk Assistant${verifiedSuffix}]`,
+          IsPrivate: true,
+        });
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Ticket #${args.ticketId}: contact ${args.contactUid} removed (recorded for ${attributedName}).`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_tickets_get_attachments",
+    {
+      title: "Get Ticket Attachments",
+      description:
+        "List the files attached to a ticket (metadata only). Read-only — use " +
+        "tdx_tickets_add_attachment to upload a file.",
+      inputSchema: {
+        ticketId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Ticket ID whose attachments to list"),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const attachments = await handlers.getTicketAttachments(args.ticketId);
+        const summary = attachments
+          .map(
+            (a) =>
+              `#${a.ID} ${a.Name} (${a.Size} bytes, ${a.ContentType}) — uploaded ${a.CreatedDate}`,
+          )
+          .join("\n");
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text:
+                attachments.length === 0
+                  ? `Ticket #${args.ticketId} has no attachments.`
+                  : `Ticket #${args.ticketId} attachments (${attachments.length}):\n\n${summary}`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_tickets_add_attachment",
+    {
+      title: "Add Ticket Attachment",
+      description:
+        "Upload a file attachment to a ticket. Provide the file content " +
+        "base64-encoded (contentBase64) plus a fileName including its extension.",
+      inputSchema: {
+        ticketId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Ticket ID to attach the file to"),
+        fileName: z
+          .string()
+          .min(1, "fileName must not be empty")
+          .describe("File name including extension, e.g. 'screenshot.png'"),
+        contentBase64: z
+          .string()
+          .min(1, "contentBase64 must not be empty")
+          .describe("The file's raw bytes, base64-encoded."),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const buffer = Buffer.from(args.contentBase64, "base64");
+        if (buffer.length === 0) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "Decoded file is empty — check that contentBase64 is valid base64.",
+              },
+            ],
+            isError: true as const,
+          };
+        }
+        const attachment = await handlers.addTicketAttachment(
+          args.ticketId,
+          buffer,
+          args.fileName,
+        );
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Ticket #${args.ticketId}: uploaded attachment #${attachment.ID} (${attachment.Name}).`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_tickets_add_tag",
+    {
+      title: "Add Ticket Tag",
+      description: "Add a tag to a ticket for categorization and search.",
+      inputSchema: {
+        ticketId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Ticket ID to tag"),
+        tag: z
+          .string()
+          .min(1, "tag must not be empty")
+          .describe("The tag text to add"),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        await handlers.addTicketTag(args.ticketId, args.tag);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Ticket #${args.ticketId}: tag "${args.tag}" added.`,
             },
           ],
         };

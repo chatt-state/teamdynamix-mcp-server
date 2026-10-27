@@ -13,6 +13,13 @@ const mockTickets = {
   getTypes: vi.fn(),
   getStatuses: vi.fn(),
   getPriorities: vi.fn(),
+  getTasks: vi.fn(),
+  getContacts: vi.fn(),
+  addContact: vi.fn(),
+  removeContact: vi.fn(),
+  getAttachments: vi.fn(),
+  addAttachment: vi.fn(),
+  addTag: vi.fn(),
 };
 
 vi.mock("../../tdx-client.js", () => ({
@@ -31,6 +38,13 @@ import {
   getTicketTypes,
   getTicketStatuses,
   getTicketPriorities,
+  getTicketTasks,
+  getTicketContacts,
+  addTicketContact,
+  removeTicketContact,
+  getTicketAttachments,
+  addTicketAttachment,
+  addTicketTag,
 } from "./handlers.js";
 
 describe("ticket handlers", () => {
@@ -180,6 +194,85 @@ describe("ticket handlers", () => {
 
       expect(mockTickets.getPriorities).toHaveBeenCalled();
       expect(result).toEqual(priorities);
+    });
+  });
+
+  describe("getTicketTasks", () => {
+    it("should return tasks from the library client", async () => {
+      const tasks = [{ ID: 1, Title: "Task" }];
+      mockTickets.getTasks.mockResolvedValue(tasks);
+
+      const result = await getTicketTasks(42);
+
+      expect(mockTickets.getTasks).toHaveBeenCalledWith(42);
+      expect(result).toEqual(tasks);
+    });
+  });
+
+  describe("getTicketContacts", () => {
+    it("should return contacts from the library client", async () => {
+      const contacts = [{ UID: "u-1", FullName: "Pat" }];
+      mockTickets.getContacts.mockResolvedValue(contacts);
+
+      const result = await getTicketContacts(42);
+
+      expect(mockTickets.getContacts).toHaveBeenCalledWith(42);
+      expect(result).toEqual(contacts);
+    });
+  });
+
+  describe("addTicketContact", () => {
+    it("should forward ticket ID and UID to the library client", async () => {
+      mockTickets.addContact.mockResolvedValue(undefined);
+
+      await addTicketContact(42, "u-9");
+
+      expect(mockTickets.addContact).toHaveBeenCalledWith(42, "u-9");
+    });
+  });
+
+  describe("removeTicketContact", () => {
+    it("should forward ticket ID and UID to the library client", async () => {
+      mockTickets.removeContact.mockResolvedValue(undefined);
+
+      await removeTicketContact(42, "u-9");
+
+      expect(mockTickets.removeContact).toHaveBeenCalledWith(42, "u-9");
+    });
+  });
+
+  describe("getTicketAttachments", () => {
+    it("should return attachments from the library client", async () => {
+      const attachments = [{ ID: 1, Name: "log.txt" }];
+      mockTickets.getAttachments.mockResolvedValue(attachments);
+
+      const result = await getTicketAttachments(42);
+
+      expect(mockTickets.getAttachments).toHaveBeenCalledWith(42);
+      expect(result).toEqual(attachments);
+    });
+  });
+
+  describe("addTicketAttachment", () => {
+    it("should forward ticket ID, buffer, and file name to the library client", async () => {
+      const buffer = Buffer.from("data");
+      const created = { ID: 5, Name: "note.txt" };
+      mockTickets.addAttachment.mockResolvedValue(created);
+
+      const result = await addTicketAttachment(42, buffer, "note.txt");
+
+      expect(mockTickets.addAttachment).toHaveBeenCalledWith(42, buffer, "note.txt");
+      expect(result).toEqual(created);
+    });
+  });
+
+  describe("addTicketTag", () => {
+    it("should forward ticket ID and tag to the library client", async () => {
+      mockTickets.addTag.mockResolvedValue(undefined);
+
+      await addTicketTag(42, "hardware");
+
+      expect(mockTickets.addTag).toHaveBeenCalledWith(42, "hardware");
     });
   });
 });

@@ -17,6 +17,7 @@ import type {
   TicketPriority,
   FeedEntry,
   TicketFeedEntryParams,
+  Attachment,
 } from "@chatt-state/node-teamdynamix";
 
 // Re-export for tool consumers that previously imported from this module.
@@ -139,4 +140,62 @@ export async function addTicketFeedEntry(
   entry: TicketFeedEntryParams,
 ): Promise<FeedEntry> {
   return getTdxClient().tickets.addFeedEntry(ticketId, entry);
+}
+
+// ---------------------------------------------------------------------------
+// Full-coverage reads/writes for related ticket resources.
+// ---------------------------------------------------------------------------
+
+/**
+ * Retrieves the tasks (and activities) associated with a ticket. The TDX Web
+ * API does not expose a typed shape here, so the result is left untyped and
+ * the tool layer probes the common summary fields.
+ */
+export async function getTicketTasks(ticketId: number): Promise<unknown[]> {
+  return getTdxClient().tickets.getTasks(ticketId);
+}
+
+/** Retrieves the additional contacts associated with a ticket (untyped by TDX). */
+export async function getTicketContacts(ticketId: number): Promise<unknown[]> {
+  return getTdxClient().tickets.getContacts(ticketId);
+}
+
+/** Adds an additional contact (by UID/Guid) to a ticket. */
+export async function addTicketContact(
+  ticketId: number,
+  uid: string,
+): Promise<void> {
+  return getTdxClient().tickets.addContact(ticketId, uid);
+}
+
+/** Removes an additional contact (by UID/Guid) from a ticket. */
+export async function removeTicketContact(
+  ticketId: number,
+  uid: string,
+): Promise<void> {
+  return getTdxClient().tickets.removeContact(ticketId, uid);
+}
+
+/** Retrieves attachment metadata for a ticket. */
+export async function getTicketAttachments(
+  ticketId: number,
+): Promise<Attachment[]> {
+  return getTdxClient().tickets.getAttachments(ticketId);
+}
+
+/** Uploads a file attachment (raw bytes) to a ticket. */
+export async function addTicketAttachment(
+  ticketId: number,
+  file: Buffer,
+  fileName: string,
+): Promise<Attachment> {
+  return getTdxClient().tickets.addAttachment(ticketId, file, fileName);
+}
+
+/** Adds a tag to a ticket. */
+export async function addTicketTag(
+  ticketId: number,
+  tag: string,
+): Promise<void> {
+  return getTdxClient().tickets.addTag(ticketId, tag);
 }
