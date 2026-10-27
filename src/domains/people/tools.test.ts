@@ -11,6 +11,13 @@ vi.mock("../../tdx-client.js", () => ({
     people: {
       search: vi.fn(),
       get: vi.fn(),
+      getByUsername: vi.fn(),
+      getGroups: vi.fn(),
+      addToGroup: vi.fn(),
+      removeFromGroup: vi.fn(),
+      setActive: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
     },
   })),
 }));
@@ -23,8 +30,21 @@ function getRegisteredTools(
     ._registeredTools;
 }
 
+/** The full set of people tool names this domain is expected to register. */
+const EXPECTED_PEOPLE_TOOLS = [
+  "tdx_people_search",
+  "tdx_people_get",
+  "tdx_people_get_by_username",
+  "tdx_people_get_groups",
+  "tdx_people_add_to_group",
+  "tdx_people_remove_from_group",
+  "tdx_people_set_active",
+  "tdx_people_create",
+  "tdx_people_update",
+];
+
 describe("people tools registration", () => {
-  it("should register both people tools", () => {
+  it("should register all people tools", () => {
     const server = new McpServer({
       name: "test-server",
       version: "0.0.1",
@@ -34,11 +54,12 @@ describe("people tools registration", () => {
 
     const registeredTools = getRegisteredTools(server);
 
-    expect("tdx_people_search" in registeredTools).toBe(true);
-    expect("tdx_people_get" in registeredTools).toBe(true);
+    for (const name of EXPECTED_PEOPLE_TOOLS) {
+      expect(name in registeredTools).toBe(true);
+    }
   });
 
-  it("should register exactly 2 people tools", () => {
+  it("should register exactly the expected number of people tools", () => {
     const server = new McpServer({
       name: "test-server",
       version: "0.0.1",
@@ -51,7 +72,7 @@ describe("people tools registration", () => {
     const peopleTools = Object.keys(registeredTools).filter((name) =>
       name.startsWith("tdx_people_"),
     );
-    expect(peopleTools).toHaveLength(2);
+    expect(peopleTools).toHaveLength(EXPECTED_PEOPLE_TOOLS.length);
   });
 
   it("should match the expected tool names from the domain registry", () => {
@@ -64,12 +85,7 @@ describe("people tools registration", () => {
 
     const registeredTools = getRegisteredTools(server);
 
-    const expectedNames = [
-      "tdx_people_search",
-      "tdx_people_get",
-    ];
-
-    for (const name of expectedNames) {
+    for (const name of EXPECTED_PEOPLE_TOOLS) {
       expect(name in registeredTools).toBe(true);
     }
   });
