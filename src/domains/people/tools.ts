@@ -13,6 +13,7 @@ import type {
   PersonUpdateParams,
 } from "@chatt-state/node-teamdynamix";
 import { wrapToolHandler } from "../../middleware/error-handler.js";
+import type { McpErrorResponse } from "../../middleware/error-handler.js";
 import type { PortalIdentity } from "../../middleware/portal-identity.js";
 import {
   actingUserSchema,
@@ -20,7 +21,40 @@ import {
   missingAttributionResult,
   attributionNote,
 } from "../../middleware/attribution.js";
+import { getConfig } from "../../config.js";
 import * as handlers from "./handlers.js";
+
+/**
+ * Whether privileged people writes (security role, active status, group
+ * membership) are currently permitted. Off by default — see src/config.ts.
+ */
+function privilegedPeopleWritesAllowed(): boolean {
+  return getConfig().allowPrivilegedPeopleWrites;
+}
+
+/**
+ * The forbidden-style result returned when a privileged people-write is
+ * attempted while the TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES gate is off. The
+ * attribution requirement is enforced separately and first; this is an
+ * additional gate that stays closed by default even for an attributed caller.
+ */
+function privilegedWriteForbiddenResult(operation: string): McpErrorResponse {
+  return {
+    content: [
+      {
+        type: "text",
+        text:
+          `Forbidden: ${operation} is a privileged people-write and is ` +
+          "disabled by default. It requires BOTH a verified identity / " +
+          "attribution AND the server flag " +
+          "TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES=true. Ask a TDX administrator to " +
+          "enable that flag; even then, the TDX service account should run " +
+          "under a least-privilege role (defense in depth).",
+      },
+    ],
+    isError: true,
+  };
+}
 
 /** Loose shape of a user-group record as returned by the people/groups API. */
 interface PersonGroupRecord {
@@ -198,7 +232,10 @@ export function registerPeopleTools(
         "ATTRIBUTION REQUIRED: this mutation runs through the shared TDX " +
         "service account, so supply the real name and email of the user making " +
         "the change (never guess) — it is recorded in the confirmation so the " +
-        "change is human-attributable.",
+        "change is human-attributable.\n\n" +
+        "PRIVILEGED: group membership is a privileged write, disabled by " +
+        "default. It is refused unless the server flag " +
+        "TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES=true, even with valid attribution.",
       inputSchema: {
         uid: z
           .string()
@@ -219,6 +256,8 @@ export function registerPeopleTools(
           args.actingUserEmail,
         );
         if (!actor) return missingAttributionResult();
+        if (!privilegedPeopleWritesAllowed())
+          return privilegedWriteForbiddenResult("changing group membership");
         await handlers.addPersonToGroup(args.uid, args.groupId);
         return {
           content: [
@@ -241,7 +280,10 @@ export function registerPeopleTools(
         "ATTRIBUTION REQUIRED: this mutation runs through the shared TDX " +
         "service account, so supply the real name and email of the user making " +
         "the change (never guess) — it is recorded in the confirmation so the " +
-        "change is human-attributable.",
+        "change is human-attributable.\n\n" +
+        "PRIVILEGED: group membership is a privileged write, disabled by " +
+        "default. It is refused unless the server flag " +
+        "TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES=true, even with valid attribution.",
       inputSchema: {
         uid: z
           .string()
@@ -262,6 +304,8 @@ export function registerPeopleTools(
           args.actingUserEmail,
         );
         if (!actor) return missingAttributionResult();
+        if (!privilegedPeopleWritesAllowed())
+          return privilegedWriteForbiddenResult("changing group membership");
         await handlers.removePersonFromGroup(args.uid, args.groupId);
         return {
           content: [
@@ -285,7 +329,10 @@ export function registerPeopleTools(
         "ATTRIBUTION REQUIRED: deactivating a person is destructive and runs " +
         "through the shared TDX service account, so supply the real name and " +
         "email of the user making the change (never guess) — it is recorded in " +
-        "the confirmation so the change is human-attributable (FERPA).",
+        "the confirmation so the change is human-attributable (FERPA).\n\n" +
+        "PRIVILEGED: changing active status is a privileged write, disabled by " +
+        "default. It is refused unless the server flag " +
+        "TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES=true, even with valid attribution.",
       inputSchema: {
         uid: z
           .string()
@@ -304,6 +351,10 @@ export function registerPeopleTools(
           args.actingUserEmail,
         );
         if (!actor) return missingAttributionResult();
+        if (!privilegedPeopleWritesAllowed())
+          return privilegedWriteForbiddenResult(
+            "changing a person's active status",
+          );
         await handlers.setPersonActive(args.uid, args.isActive);
         return {
           content: [
@@ -327,8 +378,11 @@ export function registerPeopleTools(
         "ATTRIBUTION REQUIRED: this creates a directory record through the " +
         "shared TDX service account, so supply the real name and email of the " +
         "user making the change (never guess) — it is recorded in the " +
-        "confirmation. NOTE: securityRoleId grants privileges; setting it is a " +
-        "privileged change — only do so on explicit request.",
+        "confirmation. NOTE: securityRoleId and isActive are privileged fields, " +
+        "disabled by default — supplying either is refused unless the server " +
+        "flag TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES=true, even with valid " +
+        "attribution. Non-privileged fields (name, email, username, typeId, " +
+        "defaultAccountId, isEmployee) always work with attribution.",
       inputSchema: {
         firstName: z.string().describe("First name"),
         lastName: z.string().describe("Last name"),
@@ -373,6 +427,13 @@ export function registerPeopleTools(
           args.actingUserEmail,
         );
         if (!actor) return missingAttributionResult();
+        if (
+          (args.securityRoleId !== undefined || args.isActive !== undefined) &&
+          !privilegedPeopleWritesAllowed()
+        )
+          return privilegedWriteForbiddenResult(
+            "setting securityRoleId or isActive",
+          );
         const data: PersonCreateParams = {
           FirstName: args.firstName,
           LastName: args.lastName,
@@ -409,9 +470,11 @@ export function registerPeopleTools(
         "ATTRIBUTION REQUIRED: this mutates a directory record through the " +
         "shared TDX service account, so supply the real name and email of the " +
         "user making the change (never guess) — it is recorded in the " +
-        "confirmation. NOTE: securityRoleId and isActive are privileged — a " +
-        "securityRoleId change raises/lowers access rights; only set on " +
-        "explicit request.",
+        "confirmation. NOTE: securityRoleId and isActive are privileged fields, " +
+        "disabled by default — supplying either is refused unless the server " +
+        "flag TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES=true, even with valid " +
+        "attribution. Non-privileged fields (name, email, username, typeId, " +
+        "defaultAccountId, isEmployee) always work with attribution.",
       inputSchema: {
         uid: z
           .string()
@@ -452,6 +515,14 @@ export function registerPeopleTools(
         const { uid, actingUserFullName, actingUserEmail, ...fields } = args;
         const actor = resolveActor(identity, actingUserFullName, actingUserEmail);
         if (!actor) return missingAttributionResult();
+        if (
+          (fields.securityRoleId !== undefined ||
+            fields.isActive !== undefined) &&
+          !privilegedPeopleWritesAllowed()
+        )
+          return privilegedWriteForbiddenResult(
+            "setting securityRoleId or isActive",
+          );
         const data: PersonUpdateParams = {};
         if (fields.firstName !== undefined) data.FirstName = fields.firstName;
         if (fields.lastName !== undefined) data.LastName = fields.lastName;

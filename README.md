@@ -272,6 +272,33 @@ the GitHub Packages version. This is a local-build convenience only — do not c
 | `TDX_KB_APP_ID` | No | Knowledge Base app ID |
 | `TDX_SERVICE_CATALOG_APP_ID` | No | Service Catalog app ID |
 | `TDX_MCP_TRANSPORT` | No | `stdio` (default) or `http` |
+| `TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES` | No | `false` (default). Set to `true` to permit privileged people writes (security role, active status, group membership). See [Privileged people writes](#privileged-people-writes). |
+
+### Privileged people writes
+
+Some people operations are **privileged** because they change access rights or a
+person's standing in the directory:
+
+- `tdx_people_set_active` (deactivate / reactivate a person)
+- `tdx_people_add_to_group` / `tdx_people_remove_from_group`
+- Setting `securityRoleId` or `isActive` on `tdx_people_create` / `tdx_people_update`
+
+These are **refused by default**, in code, even for a fully attributed caller.
+Performing one requires **both**:
+
+1. **A verified identity _or_ supplied attribution** (`actingUserFullName` +
+   `actingUserEmail`) — every people write is attributable to a real human
+   (FERPA), and
+2. **`TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES=true`** on the server.
+
+Non-privileged fields (`firstName`, `lastName`, `primaryEmail`, `userName`,
+`typeId`, `defaultAccountId`, `isEmployee`) continue to work with attribution
+while the flag is off.
+
+**Defense in depth:** enabling the flag does not replace least-privilege at the
+TDX layer. The TDX service account the server authenticates as should still run
+under a **least-privilege security role**, so that even an enabled, attributed
+call cannot exceed what that role allows.
 
 ## Usage
 

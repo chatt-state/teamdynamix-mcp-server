@@ -30,6 +30,7 @@ function snapshotEnv(): Record<string, string | undefined> {
     "TDX_LOG_LEVEL",
     "TDX_PRELOAD_DOMAINS",
     "TDX_RATE_LIMIT_BUFFER",
+    "TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES",
   ];
   const snap: Record<string, string | undefined> = {};
   for (const k of keys) {
@@ -68,6 +69,7 @@ function clearTdxEnv(): void {
     "TDX_LOG_LEVEL",
     "TDX_PRELOAD_DOMAINS",
     "TDX_RATE_LIMIT_BUFFER",
+    "TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES",
   ];
   for (const k of keys) {
     delete process.env[k];
@@ -111,6 +113,7 @@ describe("config", () => {
       expect(config.logLevel).toBe("info");
       expect(config.preloadDomains).toEqual(["tickets"]);
       expect(config.rateLimitBuffer).toBe(5);
+      expect(config.allowPrivilegedPeopleWrites).toBe(false);
     });
 
     it("should accept all optional vars when provided", () => {
@@ -262,6 +265,44 @@ describe("config", () => {
         });
         const config = loadConfig();
         expect(config.preloadDomains).toEqual(["tickets", "assets"]);
+      });
+    });
+
+    describe("privileged people-write gate", () => {
+      it("should default to false when unset", () => {
+        setEnv(REQUIRED_ENV);
+        const config = loadConfig();
+        expect(config.allowPrivilegedPeopleWrites).toBe(false);
+      });
+
+      it('should enable the gate only for "true"', () => {
+        setEnv({
+          ...REQUIRED_ENV,
+          TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES: "true",
+        });
+        const config = loadConfig();
+        expect(config.allowPrivilegedPeopleWrites).toBe(true);
+      });
+
+      it("should treat any non-true value as false", () => {
+        for (const v of ["false", "1", "yes", "", "True "]) {
+          clearTdxEnv();
+          setEnv({
+            ...REQUIRED_ENV,
+            TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES: v,
+          });
+          const config = loadConfig();
+          expect(config.allowPrivilegedPeopleWrites).toBe(false);
+        }
+      });
+
+      it('should be case-insensitive for "true"', () => {
+        setEnv({
+          ...REQUIRED_ENV,
+          TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES: "TRUE",
+        });
+        const config = loadConfig();
+        expect(config.allowPrivilegedPeopleWrites).toBe(true);
       });
     });
 
