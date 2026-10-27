@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-27
+
+### Added
+
+Full-coverage expansion of the TDX surface — four new domains and new tools across three existing
+domains, bringing the server to **13 domains and 90 tools**:
+
+- **Accounts domain** — `tdx_accounts_search`, `tdx_accounts_get`, `tdx_accounts_create`, `tdx_accounts_update` (4 tools). Resolves the AccountID/department used when creating tickets.
+- **Groups domain** — `tdx_groups_search`, `tdx_groups_get`, `tdx_groups_get_members`, `tdx_groups_create`, `tdx_groups_update`, `tdx_groups_add_member`, `tdx_groups_remove_member` (7 tools).
+- **Locations domain** — `tdx_locations_search`, `tdx_locations_get`, `tdx_locations_create`, `tdx_locations_update`, `tdx_locations_get_rooms`, `tdx_locations_get_room`, `tdx_locations_create_room`, `tdx_locations_update_room`, `tdx_locations_delete_room` (9 tools).
+- **CMDB domain** — `tdx_cmdb_search`, `tdx_cmdb_get`, `tdx_cmdb_get_relationships`, `tdx_cmdb_get_feed`, `tdx_cmdb_create`, `tdx_cmdb_update`, `tdx_cmdb_delete`, `tdx_cmdb_add_relationship`, `tdx_cmdb_remove_relationship`, `tdx_cmdb_add_attachment` (10 tools).
+- **Tickets domain expansion** — `tdx_tickets_get_feed`, `tdx_tickets_get_tasks`, `tdx_tickets_get_contacts`, `tdx_tickets_add_contact`, `tdx_tickets_remove_contact`, `tdx_tickets_get_attachments`, `tdx_tickets_add_attachment`, `tdx_tickets_add_tag` (8 new tools; `tdx_tickets_reply` now also tracked in registry reporting).
+- **People domain expansion** — `tdx_people_get_by_username`, `tdx_people_get_groups`, `tdx_people_add_to_group`, `tdx_people_remove_from_group`, `tdx_people_set_active`, `tdx_people_create`, `tdx_people_update` (7 new tools).
+- **Assets domain expansion** — `tdx_assets_update`, `tdx_assets_delete`, `tdx_assets_get_attachments`, `tdx_assets_get_feed` (4 new tools).
+
+### Changed
+
+- `src/domains/registry.ts`: `DOMAIN_NAMES`, `MODULE_MAP`, and `DOMAIN_TOOLS` extended with the four new domains and the expanded tool lists. `tdx_navigate`'s domain enum extends automatically from `z.enum(DOMAIN_NAMES)`.
+- `src/server.ts`: `tdx_navigate` human-readable description now lists all 13 domains.
+- `registry.test.ts`: tickets exact-list assertion updated and per-domain assertions added for the new domains.
+
+### Notes
+
+- The canonical dependency remains the GitHub Packages release `@chatt-state/node-teamdynamix@^0.3.0`; `package.json` and `package-lock.json` are unchanged. To build without a GitHub Packages token, install the local SDK source ad hoc first: `npm install @chatt-state/node-teamdynamix@file:../_tdx-sdk --no-save` (local-build convenience only — not committed). See the README "SDK dependency" section.
+
 ## [0.3.0] - 2026-04-06
 
 ### Added

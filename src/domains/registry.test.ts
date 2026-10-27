@@ -82,6 +82,15 @@ describe("DomainRegistry", () => {
         "tdx_tickets_get",
         "tdx_tickets_create",
         "tdx_tickets_update",
+        "tdx_tickets_reply",
+        "tdx_tickets_get_feed",
+        "tdx_tickets_get_tasks",
+        "tdx_tickets_get_contacts",
+        "tdx_tickets_add_contact",
+        "tdx_tickets_remove_contact",
+        "tdx_tickets_get_attachments",
+        "tdx_tickets_add_attachment",
+        "tdx_tickets_add_tag",
       ]);
     });
 
@@ -180,6 +189,10 @@ describe("DomainRegistry", () => {
       expect(domainRegistry.getToolNamesForDomain("time").length).toBeGreaterThan(0);
       expect(domainRegistry.getToolNamesForDomain("service_catalog").length).toBeGreaterThan(0);
       expect(domainRegistry.getToolNamesForDomain("attributes").length).toBeGreaterThan(0);
+      expect(domainRegistry.getToolNamesForDomain("accounts").length).toBeGreaterThan(0);
+      expect(domainRegistry.getToolNamesForDomain("groups").length).toBeGreaterThan(0);
+      expect(domainRegistry.getToolNamesForDomain("locations").length).toBeGreaterThan(0);
+      expect(domainRegistry.getToolNamesForDomain("cmdb").length).toBeGreaterThan(0);
     });
   });
 
