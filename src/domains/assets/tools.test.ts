@@ -12,6 +12,10 @@ vi.mock("../../tdx-client.js", () => ({
       search: vi.fn(),
       get: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      getAttachments: vi.fn(),
+      getFeed: vi.fn(),
       getStatuses: vi.fn(),
       getForms: vi.fn(),
     },
@@ -44,9 +48,13 @@ describe("asset tools registration", () => {
     expect("tdx_assets_search" in registeredTools).toBe(true);
     expect("tdx_assets_get" in registeredTools).toBe(true);
     expect("tdx_assets_create" in registeredTools).toBe(true);
+    expect("tdx_assets_update" in registeredTools).toBe(true);
+    expect("tdx_assets_delete" in registeredTools).toBe(true);
+    expect("tdx_assets_get_attachments" in registeredTools).toBe(true);
+    expect("tdx_assets_get_feed" in registeredTools).toBe(true);
   });
 
-  it("should register exactly 3 asset tools", () => {
+  it("should register exactly 7 asset tools", () => {
     const server = new McpServer({
       name: "test-server",
       version: "0.0.1",
@@ -59,7 +67,7 @@ describe("asset tools registration", () => {
     const assetTools = Object.keys(registeredTools).filter((name) =>
       name.startsWith("tdx_assets_"),
     );
-    expect(assetTools).toHaveLength(3);
+    expect(assetTools).toHaveLength(7);
   });
 
   it("should match the expected tool names from the domain registry", () => {
@@ -76,6 +84,10 @@ describe("asset tools registration", () => {
       "tdx_assets_search",
       "tdx_assets_get",
       "tdx_assets_create",
+      "tdx_assets_update",
+      "tdx_assets_delete",
+      "tdx_assets_get_attachments",
+      "tdx_assets_get_feed",
     ];
 
     for (const name of expectedNames) {

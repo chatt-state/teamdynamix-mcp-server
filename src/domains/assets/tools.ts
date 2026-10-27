@@ -7,7 +7,10 @@
 
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { AssetCreateParams } from "@chatt-state/node-teamdynamix";
+import type {
+  AssetCreateParams,
+  AssetUpdateParams,
+} from "@chatt-state/node-teamdynamix";
 import { wrapToolHandler } from "../../middleware/error-handler.js";
 import { elicitChoice } from "../../middleware/elicitation.js";
 import * as handlers from "./handlers.js";
@@ -195,6 +198,190 @@ export function registerAssetTools(server: McpServer): void {
             {
               type: "text" as const,
               text: `Asset #${asset.ID} created: ${asset.Name}`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_assets_update",
+    {
+      title: "Update Asset",
+      description:
+        "Update an existing TeamDynamix asset. Only the fields you supply are changed.",
+      inputSchema: {
+        assetId: z
+          .number()
+          .int()
+          .positive()
+          .describe("The asset ID to update"),
+        name: z.string().optional().describe("Asset name"),
+        statusId: z
+          .number()
+          .int()
+          .optional()
+          .describe("Asset status ID — omit to select interactively"),
+        formId: z
+          .number()
+          .int()
+          .optional()
+          .describe("Asset form ID"),
+        serialNumber: z.string().optional().describe("Serial number"),
+        tag: z.string().optional().describe("Asset tag"),
+        locationId: z.number().int().optional().describe("Location ID"),
+        locationRoomId: z
+          .number()
+          .int()
+          .optional()
+          .describe("Location room ID"),
+        owningCustomerId: z
+          .string()
+          .optional()
+          .describe("Owning customer UID"),
+        owningDepartmentId: z
+          .number()
+          .int()
+          .optional()
+          .describe("Owning department ID"),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const { assetId, ...fields } = args;
+
+        // Partial update: only forward the fields the caller supplied so an
+        // omitted field leaves the asset's current value untouched. StatusID
+        // and FormID are passed through verbatim when given (no elicitation —
+        // an omitted status simply means "don't change it").
+        const updateData: AssetUpdateParams = {};
+        if (fields.name !== undefined) updateData.Name = fields.name;
+        if (fields.statusId !== undefined)
+          updateData.StatusID = fields.statusId;
+        if (fields.formId !== undefined) updateData.FormID = fields.formId;
+        if (fields.serialNumber !== undefined)
+          updateData.SerialNumber = fields.serialNumber;
+        if (fields.tag !== undefined) updateData.Tag = fields.tag;
+        if (fields.locationId !== undefined)
+          updateData.LocationID = fields.locationId;
+        if (fields.locationRoomId !== undefined)
+          updateData.LocationRoomID = fields.locationRoomId;
+        if (fields.owningCustomerId !== undefined)
+          updateData.OwningCustomerID = fields.owningCustomerId;
+        if (fields.owningDepartmentId !== undefined)
+          updateData.OwningDepartmentID = fields.owningDepartmentId;
+
+        const asset = await handlers.updateAsset(assetId, updateData);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Asset #${asset.ID} updated: ${asset.Name}`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_assets_delete",
+    {
+      title: "Delete Asset",
+      description: "Delete a TeamDynamix asset by ID.",
+      inputSchema: {
+        assetId: z
+          .number()
+          .int()
+          .positive()
+          .describe("The asset ID to delete"),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        await handlers.deleteAsset(args.assetId);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Asset #${args.assetId} deleted.`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_assets_get_attachments",
+    {
+      title: "Get Asset Attachments",
+      description:
+        "List the file attachments on a TeamDynamix asset. Returns summary data.",
+      inputSchema: {
+        assetId: z
+          .number()
+          .int()
+          .positive()
+          .describe("The asset ID whose attachments to retrieve"),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const attachments = await handlers.getAssetAttachments(args.assetId);
+        const summary = attachments
+          .map(
+            (a) =>
+              `#${a.ID} ${a.Name} (${a.ContentType}, ${a.Size} bytes, uploaded ${a.CreatedDate})`,
+          )
+          .join("\n");
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text:
+                attachments.length === 0
+                  ? `No attachments found on asset #${args.assetId}.`
+                  : `Found ${attachments.length} attachment(s) on asset #${args.assetId}:\n\n${summary}`,
+            },
+          ],
+        };
+      });
+    },
+  );
+
+  server.registerTool(
+    "tdx_assets_get_feed",
+    {
+      title: "Get Asset Feed",
+      description:
+        "Get the activity feed (comments and updates) for a TeamDynamix asset. Returns summary data.",
+      inputSchema: {
+        assetId: z
+          .number()
+          .int()
+          .positive()
+          .describe("The asset ID whose feed to retrieve"),
+      },
+    },
+    async (args) => {
+      return wrapToolHandler(async () => {
+        const entries = await handlers.getAssetFeed(args.assetId);
+        const summary = entries
+          .map(
+            (e) =>
+              `#${e.ID} [${e.CreatedDate}] ${e.CreatedFullName}${e.IsPrivate ? " (private)" : ""}: ${e.Comments}`,
+          )
+          .join("\n");
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text:
+                entries.length === 0
+                  ? `No feed entries found on asset #${args.assetId}.`
+                  : `Found ${entries.length} feed entr(y/ies) on asset #${args.assetId}:\n\n${summary}`,
             },
           ],
         };
