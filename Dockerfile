@@ -3,11 +3,11 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-COPY package.json .npmrc ./
+COPY package.json package-lock.json .npmrc ./
 RUN --mount=type=secret,id=npm_token \
     NPM_TOKEN=$(cat /run/secrets/npm_token) && \
     echo "//npm.pkg.github.com/:_authToken=${NPM_TOKEN}" >> .npmrc && \
-    npm install && \
+    npm ci && \
     rm -f .npmrc
 
 COPY src/ src/
@@ -23,12 +23,12 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 mcp && \
     adduser --system --uid 1001 --ingroup mcp mcp
 
-COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package.json /app/package-lock.json ./
 COPY .npmrc ./
 RUN --mount=type=secret,id=npm_token \
     NPM_TOKEN=$(cat /run/secrets/npm_token) && \
     echo "//npm.pkg.github.com/:_authToken=${NPM_TOKEN}" >> .npmrc && \
-    npm install --omit=dev && \
+    npm ci --omit=dev && \
     rm -f .npmrc
 
 COPY --from=builder /app/dist/ dist/

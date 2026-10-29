@@ -51,7 +51,23 @@ describe("DomainRegistry", () => {
 
       await domainRegistry.loadDomain("tickets");
 
-      expect(mockModule.register).toHaveBeenCalledWith(mockServer);
+      // Registration receives the server plus the (null by default) identity.
+      expect(mockModule.register).toHaveBeenCalledWith(mockServer, null);
+    });
+
+    it("should pass the configured identity to the domain module", async () => {
+      const mockModule = createMockDomainModule();
+      const identity = { email: "jdoe@example.edu", name: "Jane Doe" };
+
+      vi.spyOn(
+        domainRegistry as unknown as { importDomain: () => Promise<DomainModule> },
+        "importDomain" as never,
+      ).mockResolvedValue(mockModule);
+
+      domainRegistry.setIdentity(identity);
+      await domainRegistry.loadDomain("tickets");
+
+      expect(mockModule.register).toHaveBeenCalledWith(mockServer, identity);
     });
 
     it("should notify clients of tool list change after loading", async () => {
@@ -82,6 +98,18 @@ describe("DomainRegistry", () => {
         "tdx_tickets_get",
         "tdx_tickets_create",
         "tdx_tickets_update",
+        "tdx_tickets_reply",
+        "tdx_tickets_get_feed",
+        "tdx_tickets_get_tasks",
+        "tdx_tickets_get_contacts",
+        "tdx_tickets_add_contact",
+        "tdx_tickets_remove_contact",
+        "tdx_tickets_get_attachments",
+        "tdx_tickets_add_attachment",
+        "tdx_tickets_add_tag",
+        "tdx_tickets_get_types",
+        "tdx_tickets_get_statuses",
+        "tdx_tickets_get_priorities",
       ]);
     });
 
@@ -180,6 +208,10 @@ describe("DomainRegistry", () => {
       expect(domainRegistry.getToolNamesForDomain("time").length).toBeGreaterThan(0);
       expect(domainRegistry.getToolNamesForDomain("service_catalog").length).toBeGreaterThan(0);
       expect(domainRegistry.getToolNamesForDomain("attributes").length).toBeGreaterThan(0);
+      expect(domainRegistry.getToolNamesForDomain("accounts").length).toBeGreaterThan(0);
+      expect(domainRegistry.getToolNamesForDomain("groups").length).toBeGreaterThan(0);
+      expect(domainRegistry.getToolNamesForDomain("locations").length).toBeGreaterThan(0);
+      expect(domainRegistry.getToolNamesForDomain("cmdb").length).toBeGreaterThan(0);
     });
   });
 

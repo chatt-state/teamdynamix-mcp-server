@@ -17,6 +17,7 @@ import type {
   TicketPriority,
   FeedEntry,
   TicketFeedEntryParams,
+  Attachment,
 } from "@chatt-state/node-teamdynamix";
 
 // Re-export for tool consumers that previously imported from this module.
@@ -123,7 +124,12 @@ export async function resolveRequestorAccountId(email: string): Promise<number |
   const exact = people.find(
     (p) => (p.PrimaryEmail ?? "").toLowerCase() === email.toLowerCase(),
   );
-  return (exact ?? people[0])?.DefaultAccountID;
+  // TDX returns DefaultAccountID = 0 for people with no default account
+  // (common for students, contacts, and newly-created users). Sending 0 as
+  // the ticket AccountID 400s with "AccountId: 0 does not exist or is
+  // invalid", so treat 0/falsy as unresolved rather than a usable value.
+  const id = (exact ?? people[0])?.DefaultAccountID;
+  return id && id > 0 ? id : undefined;
 }
 
 /**
@@ -139,4 +145,62 @@ export async function addTicketFeedEntry(
   entry: TicketFeedEntryParams,
 ): Promise<FeedEntry> {
   return getTdxClient().tickets.addFeedEntry(ticketId, entry);
+}
+
+// ---------------------------------------------------------------------------
+// Full-coverage reads/writes for related ticket resources.
+// ---------------------------------------------------------------------------
+
+/**
+ * Retrieves the tasks (and activities) associated with a ticket. The TDX Web
+ * API does not expose a typed shape here, so the result is left untyped and
+ * the tool layer probes the common summary fields.
+ */
+export async function getTicketTasks(ticketId: number): Promise<unknown[]> {
+  return getTdxClient().tickets.getTasks(ticketId);
+}
+
+/** Retrieves the additional contacts associated with a ticket (untyped by TDX). */
+export async function getTicketContacts(ticketId: number): Promise<unknown[]> {
+  return getTdxClient().tickets.getContacts(ticketId);
+}
+
+/** Adds an additional contact (by UID/Guid) to a ticket. */
+export async function addTicketContact(
+  ticketId: number,
+  uid: string,
+): Promise<void> {
+  return getTdxClient().tickets.addContact(ticketId, uid);
+}
+
+/** Removes an additional contact (by UID/Guid) from a ticket. */
+export async function removeTicketContact(
+  ticketId: number,
+  uid: string,
+): Promise<void> {
+  return getTdxClient().tickets.removeContact(ticketId, uid);
+}
+
+/** Retrieves attachment metadata for a ticket. */
+export async function getTicketAttachments(
+  ticketId: number,
+): Promise<Attachment[]> {
+  return getTdxClient().tickets.getAttachments(ticketId);
+}
+
+/** Uploads a file attachment (raw bytes) to a ticket. */
+export async function addTicketAttachment(
+  ticketId: number,
+  file: Buffer,
+  fileName: string,
+): Promise<Attachment> {
+  return getTdxClient().tickets.addAttachment(ticketId, file, fileName);
+}
+
+/** Adds a tag to a ticket. */
+export async function addTicketTag(
+  ticketId: number,
+  tag: string,
+): Promise<void> {
+  return getTdxClient().tickets.addTag(ticketId, tag);
 }

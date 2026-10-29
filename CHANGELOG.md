@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **AccountId:0 regression** (`tickets`): `resolveRequestorAccountId` now treats a `DefaultAccountID` of `0` (returned by TDX for students/contacts/new users with no default department) as unresolved, and `tdx_tickets_create` flags a falsy resolved AccountID instead of sending `AccountID: 0` — which TDX 400s with "AccountId: 0 does not exist or is invalid". The `accountId`/`typeId`/`statusId`/`priorityId` input schemas are now `.positive()`.
+- **Cloudflare Worker exposed only tickets**: `dispatchMcp` now registers the full domain surface via a new static `registerAllDomains()` (Workers cannot use the stdio registry's dynamic `import()`), so the hosted claude.ai connector is full-featured end-to-end rather than tickets-only.
+
+### Added
+
+- **Ticket enumeration tools** — `tdx_tickets_get_types`, `tdx_tickets_get_statuses`, `tdx_tickets_get_priorities` wrap the existing SDK lookups so the model can resolve names like "Resolved" / "In Process" to the numeric IDs that search/create/update/reply require. Added to `DOMAIN_TOOLS.tickets` (tickets domain now 16 tools).
+
+### Changed
+
+- **Attribution on destructive non-ticket writes** (FERPA accountability): the destructive `people` (set_active, create, update, add/remove group membership), `cmdb` (create, update, delete, add_attachment), `assets` (delete), `locations` (delete_room) and `groups` (add/remove member) tools now require a human actor — a verified `X-Portal-User` identity (authoritative, spoof-proof) or model-supplied `actingUserFullName`/`actingUserEmail`, else they refuse — and record the actor in the confirmation output, mirroring the tickets convention. `securityRoleId` and `isActive` on people writes are flagged as privileged. New shared helper `src/middleware/attribution.ts`.
+- **Identity threading**: `DomainModule.register()` and every domain's `register()` now accept the verified `PortalIdentity`; `DomainRegistry.setIdentity()` threads it through `loadDomain()` so attribution can be enforced on every transport, not just tickets.
+- `tdx_tickets_create`'s `typeId` description no longer claims interactive selection (there is no prompt over HTTP); it documents the server-side default and points to `tdx_tickets_get_types`.
+- `tdx_navigate` description now annotates each domain with its TDX synonym (e.g. accounts = departments, cmdb = configuration items, groups = routing/assignment pools).
+
+### Known issues (require an SDK release — out of scope for this repo)
+
+The following are **API-conformance defects in `@chatt-state/node-teamdynamix`** (wrong HTTP verb/route/body). The MCP calls the SDK resource methods and the SDK's `HttpTransport` is `private`, so they cannot be corrected from this package; they need a patched SDK release and are tracked for the next `@chatt-state/node-teamdynamix` version:
+
+- `groups.update` POSTs (should PUT `/groups/{id}`); `groups.addMember`/`removeMember` hit a non-existent per-UID route (should be `POST`/`DELETE /groups/{id}/members` with a UID array).
+- `people.addToGroup` POSTs (should PUT `/people/{uid}/groups/{groupID}`); `people.getByUsername` uses the fuzzy `/people/lookup` (returns an array) instead of exact `/people/getuid/{username}`.
+- `accounts.update`, `locations.update`, `locations.updateRoom`, `cmdb.update` POST (should PUT/PATCH); `cmdb.addRelationship` POSTs a body (should PUT with `typeId`/`otherItemId`/`isParent` query params).
+- `locations.getRooms` / `assets.getAttachments` / `tickets.getAttachments` GET routes that do not exist (the data ships on the parent detail object); `tickets.addTag` sends a scalar body (should be a string array).
+- Ticket tasks are read-only: no SDK method for `PATCH/POST /tickets/{id}/tasks/{taskId}`, so no `tdx_tickets_update_task` tool can be added yet.
+
+## [0.4.0] - 2026-10-27
+
+### Added
+
+Full-coverage expansion of the TDX surface — four new domains and new tools across three existing
+domains, bringing the server to **13 domains and 90 tools**:
+
+- **Accounts domain** — `tdx_accounts_search`, `tdx_accounts_get`, `tdx_accounts_create`, `tdx_accounts_update` (4 tools). Resolves the AccountID/department used when creating tickets.
+- **Groups domain** — `tdx_groups_search`, `tdx_groups_get`, `tdx_groups_get_members`, `tdx_groups_create`, `tdx_groups_update`, `tdx_groups_add_member`, `tdx_groups_remove_member` (7 tools).
+- **Locations domain** — `tdx_locations_search`, `tdx_locations_get`, `tdx_locations_create`, `tdx_locations_update`, `tdx_locations_get_rooms`, `tdx_locations_get_room`, `tdx_locations_create_room`, `tdx_locations_update_room`, `tdx_locations_delete_room` (9 tools).
+- **CMDB domain** — `tdx_cmdb_search`, `tdx_cmdb_get`, `tdx_cmdb_get_relationships`, `tdx_cmdb_get_feed`, `tdx_cmdb_create`, `tdx_cmdb_update`, `tdx_cmdb_delete`, `tdx_cmdb_add_relationship`, `tdx_cmdb_remove_relationship`, `tdx_cmdb_add_attachment` (10 tools).
+- **Tickets domain expansion** — `tdx_tickets_get_feed`, `tdx_tickets_get_tasks`, `tdx_tickets_get_contacts`, `tdx_tickets_add_contact`, `tdx_tickets_remove_contact`, `tdx_tickets_get_attachments`, `tdx_tickets_add_attachment`, `tdx_tickets_add_tag` (8 new tools; `tdx_tickets_reply` now also tracked in registry reporting).
+- **People domain expansion** — `tdx_people_get_by_username`, `tdx_people_get_groups`, `tdx_people_add_to_group`, `tdx_people_remove_from_group`, `tdx_people_set_active`, `tdx_people_create`, `tdx_people_update` (7 new tools).
+- **Assets domain expansion** — `tdx_assets_update`, `tdx_assets_delete`, `tdx_assets_get_attachments`, `tdx_assets_get_feed` (4 new tools).
+
+### Changed
+
+- `src/domains/registry.ts`: `DOMAIN_NAMES`, `MODULE_MAP`, and `DOMAIN_TOOLS` extended with the four new domains and the expanded tool lists. `tdx_navigate`'s domain enum extends automatically from `z.enum(DOMAIN_NAMES)`.
+- `src/server.ts`: `tdx_navigate` human-readable description now lists all 13 domains.
+- `registry.test.ts`: tickets exact-list assertion updated and per-domain assertions added for the new domains.
+
+### Notes
+
+- The canonical dependency remains the GitHub Packages release `@chatt-state/node-teamdynamix@^0.3.0`; `package.json` and `package-lock.json` are unchanged. To build without a GitHub Packages token, install the local SDK source ad hoc first: `npm install @chatt-state/node-teamdynamix@file:../_tdx-sdk --no-save` (local-build convenience only — not committed). See the README "SDK dependency" section.
+
 ## [0.3.0] - 2026-04-06
 
 ### Added

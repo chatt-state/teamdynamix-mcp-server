@@ -1,12 +1,12 @@
 # TeamDynamix MCP Server
 
-An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to your [TeamDynamix](https://www.teamdynamix.com/) instance. Search and manage tickets, knowledge base articles, people, assets, projects, time entries, reports, service catalog, and custom attributes through natural language.
+An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to your [TeamDynamix](https://www.teamdynamix.com/) instance. Search and manage tickets, knowledge base articles, people, assets, projects, time entries, reports, service catalog, custom attributes, accounts, groups, locations, and the CMDB through natural language.
 
 ## Features
 
 - **Decision-tree navigation** — only 2 tools load at startup; domain tools load on demand
-- **9 domains** — Tickets, Knowledge Base, People, Assets, Projects, Time, Reports, Service Catalog, Attributes
-- **38 tools** total across all domains
+- **13 domains** — Tickets, Knowledge Base, People, Assets, Projects, Time, Reports, Service Catalog, Attributes, Accounts, Groups, Locations, CMDB
+- **90 tools** total across all domains
 - **Interactive elicitation** — prompts for ticket type, asset status/form, KB category, time type, and service category when IDs aren't provided
 - **Claude plugin** — skills and commands for guided workflows
 - **Multiple transports** — stdio (default) and streamable HTTP
@@ -16,7 +16,7 @@ An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to 
 ### Always loaded
 | Tool | Description |
 |------|-------------|
-| `tdx_navigate` | Load a domain tool set (tickets, knowledge_base, people, assets, projects, reports, time, service_catalog, attributes) |
+| `tdx_navigate` | Load a domain tool set (tickets, knowledge_base, people, assets, projects, reports, time, service_catalog, attributes, accounts, groups, locations, cmdb) |
 | `tdx_status` | Server status and loaded domains |
 
 ### Tickets domain
@@ -26,6 +26,15 @@ An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to 
 | `tdx_tickets_get` | Get full ticket details by ID |
 | `tdx_tickets_create` | Create a new ticket (interactive type selection) |
 | `tdx_tickets_update` | Update an existing ticket |
+| `tdx_tickets_reply` | Post a reply/comment to a ticket |
+| `tdx_tickets_get_feed` | Read a ticket's activity feed (comments/status updates) |
+| `tdx_tickets_get_tasks` | List tasks and activities on a ticket |
+| `tdx_tickets_get_contacts` | List additional contacts on a ticket |
+| `tdx_tickets_add_contact` | Add a contact to a ticket (requires attribution; logs an audit feed entry) |
+| `tdx_tickets_remove_contact` | Remove a contact from a ticket (requires attribution; logs an audit feed entry) |
+| `tdx_tickets_get_attachments` | List a ticket's attachments (metadata) |
+| `tdx_tickets_add_attachment` | Upload a file attachment to a ticket (base64 content) |
+| `tdx_tickets_add_tag` | Add a tag to a ticket |
 
 ### Knowledge Base domain
 | Tool | Description |
@@ -40,6 +49,13 @@ An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to 
 |------|-------------|
 | `tdx_people_search` | Search people by name, email, or department |
 | `tdx_people_get` | Get person details by UID |
+| `tdx_people_get_by_username` | Look up a person by username |
+| `tdx_people_get_groups` | List the groups a person belongs to |
+| `tdx_people_add_to_group` | Add a person to a group (by UID + group ID) |
+| `tdx_people_remove_from_group` | Remove a person from a group (by UID + group ID) |
+| `tdx_people_set_active` | Deactivate or reactivate a person |
+| `tdx_people_create` | Create a new person (user/contact) |
+| `tdx_people_update` | Update an existing person by UID |
 
 ### Assets domain
 | Tool | Description |
@@ -47,6 +63,10 @@ An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to 
 | `tdx_assets_search` | Search assets/CIs |
 | `tdx_assets_get` | Get asset details by ID |
 | `tdx_assets_create` | Create a new asset (interactive status/form selection) |
+| `tdx_assets_update` | Update an existing asset (partial — only supplied fields change) |
+| `tdx_assets_delete` | Delete an asset by ID |
+| `tdx_assets_get_attachments` | List an asset's file attachments |
+| `tdx_assets_get_feed` | Get an asset's activity feed (comments and updates) |
 
 ### Projects domain
 | Tool | Description |
@@ -94,6 +114,52 @@ An [MCP](https://modelcontextprotocol.io) server that connects AI assistants to 
 | `tdx_attributes_create_choice` | Add a new picklist choice |
 | `tdx_attributes_update_choice` | Update an existing picklist choice |
 | `tdx_attributes_delete_choice` | Remove a picklist choice |
+
+### Accounts domain
+| Tool | Description |
+|------|-------------|
+| `tdx_accounts_search` | Search accounts/departments (resolves the AccountID used when creating tickets) |
+| `tdx_accounts_get` | Get full account/department details by ID |
+| `tdx_accounts_create` | Create a new account (department) |
+| `tdx_accounts_update` | Update an existing account (department) |
+
+### Groups domain
+| Tool | Description |
+|------|-------------|
+| `tdx_groups_search` | Search groups by name/active status |
+| `tdx_groups_get` | Get full group details by ID |
+| `tdx_groups_get_members` | List a group's members (interactive group selection) |
+| `tdx_groups_create` | Create a new group |
+| `tdx_groups_update` | Update an existing group |
+| `tdx_groups_add_member` | Add a person (by UID) to a group (interactive group selection) |
+| `tdx_groups_remove_member` | Remove a person (by UID) from a group (interactive group selection) |
+
+### Locations domain
+| Tool | Description |
+|------|-------------|
+| `tdx_locations_search` | Search locations by name text and active status |
+| `tdx_locations_get` | Get full location details by ID |
+| `tdx_locations_create` | Create a new location (building/site) |
+| `tdx_locations_update` | Update an existing location |
+| `tdx_locations_get_rooms` | List rooms for a location (interactive location selection) |
+| `tdx_locations_get_room` | Get full details for a room within a location |
+| `tdx_locations_create_room` | Create a room within a location (interactive location selection) |
+| `tdx_locations_update_room` | Update a room within a location |
+| `tdx_locations_delete_room` | Delete a room from a location |
+
+### CMDB domain
+| Tool | Description |
+|------|-------------|
+| `tdx_cmdb_search` | Search CMDB configuration items by text, type, active state |
+| `tdx_cmdb_get` | Get full configuration item details by ID |
+| `tdx_cmdb_get_relationships` | List a configuration item's relationships |
+| `tdx_cmdb_get_feed` | Get a configuration item's activity feed |
+| `tdx_cmdb_create` | Create a new configuration item (TypeID/FormID required) |
+| `tdx_cmdb_update` | Update an existing configuration item |
+| `tdx_cmdb_delete` | Delete a configuration item |
+| `tdx_cmdb_add_relationship` | Relate one configuration item to another (TypeID required) |
+| `tdx_cmdb_remove_relationship` | Remove a relationship by relationship ID |
+| `tdx_cmdb_add_attachment` | Upload a base64-encoded file attachment to a configuration item |
 
 ## Prerequisites
 
@@ -175,6 +241,25 @@ npm install
 npm run build
 ```
 
+#### SDK dependency
+
+The canonical dependency is the GitHub Packages release `@chatt-state/node-teamdynamix@^0.3.0`
+(configured in `package.json`; `.npmrc` points `@chatt-state` at `https://npm.pkg.github.com`),
+which `npm install` resolves with a GitHub Packages token.
+
+If you are building without that token — for example against a local SDK source checkout — install
+the SDK ad hoc from a local path **before** building, without editing `package.json` or the lockfile:
+
+```bash
+# from the mcp-server dir, with the SDK source checkout at ../_tdx-sdk (already `npm run build`-ed)
+npm install @chatt-state/node-teamdynamix@file:../_tdx-sdk --no-save
+npm run build
+```
+
+The `--no-save` form overrides the registry for that one package only; it pulls the remaining
+dependencies from public npm and leaves the committed `package.json`/`package-lock.json` pointing at
+the GitHub Packages version. This is a local-build convenience only — do not commit the `file:` link.
+
 ## Configuration
 
 | Environment Variable | Required | Description |
@@ -187,6 +272,33 @@ npm run build
 | `TDX_KB_APP_ID` | No | Knowledge Base app ID |
 | `TDX_SERVICE_CATALOG_APP_ID` | No | Service Catalog app ID |
 | `TDX_MCP_TRANSPORT` | No | `stdio` (default) or `http` |
+| `TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES` | No | `false` (default). Set to `true` to permit privileged people writes (security role, active status, group membership). See [Privileged people writes](#privileged-people-writes). |
+
+### Privileged people writes
+
+Some people operations are **privileged** because they change access rights or a
+person's standing in the directory:
+
+- `tdx_people_set_active` (deactivate / reactivate a person)
+- `tdx_people_add_to_group` / `tdx_people_remove_from_group`
+- Setting `securityRoleId` or `isActive` on `tdx_people_create` / `tdx_people_update`
+
+These are **refused by default**, in code, even for a fully attributed caller.
+Performing one requires **both**:
+
+1. **A verified identity _or_ supplied attribution** (`actingUserFullName` +
+   `actingUserEmail`) — every people write is attributable to a real human
+   (FERPA), and
+2. **`TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES=true`** on the server.
+
+Non-privileged fields (`firstName`, `lastName`, `primaryEmail`, `userName`,
+`typeId`, `defaultAccountId`, `isEmployee`) continue to work with attribution
+while the flag is off.
+
+**Defense in depth:** enabling the flag does not replace least-privilege at the
+TDX layer. The TDX service account the server authenticates as should still run
+under a **least-privilege security role**, so that even an enabled, attributed
+call cannot exceed what that role allows.
 
 ## Usage
 

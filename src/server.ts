@@ -32,8 +32,13 @@ mcpServer.registerTool(
   "tdx_navigate",
   {
     description:
-      "Load a TeamDynamix domain tool set. " +
-      "Available domains: tickets, knowledge_base, people, assets, projects, reports, time, service_catalog, attributes.",
+      "Load a TeamDynamix domain tool set. Available domains (TDX jargon in " +
+      "parentheses): tickets, knowledge_base (KB articles), people (users & " +
+      "contacts), assets, projects, reports, time (time entries), " +
+      "service_catalog (service offerings), attributes (custom attributes), " +
+      "accounts (departments/organizations), groups (ticket routing & " +
+      "assignment pools), locations (buildings & rooms), cmdb (configuration " +
+      "items).",
     inputSchema: {
       domain: z.enum(DOMAIN_NAMES),
     },

@@ -7,9 +7,13 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { PortalIdentity } from "../../middleware/portal-identity.js";
 import { registerAttributeTools } from "./tools.js";
 
 /** Registers attribute domain tools with the MCP server. */
-export function register(server: McpServer): void {
+export function register(
+  server: McpServer,
+  _identity: PortalIdentity | null = null,
+): void {
   registerAttributeTools(server);
 }

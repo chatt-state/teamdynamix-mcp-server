@@ -6,6 +6,7 @@
  */
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { PortalIdentity } from "../middleware/portal-identity.js";
 
 /** All supported domain names. */
 export const DOMAIN_NAMES = [
@@ -18,13 +19,17 @@ export const DOMAIN_NAMES = [
   "time",
   "service_catalog",
   "attributes",
+  "accounts",
+  "groups",
+  "locations",
+  "cmdb",
 ] as const;
 
 export type DomainName = (typeof DOMAIN_NAMES)[number];
 
 /** Interface that each domain module must implement. */
 export interface DomainModule {
-  register(server: McpServer): void;
+  register(server: McpServer, identity?: PortalIdentity | null): void;
 }
 
 /** Maps domain names to their module import paths. */
@@ -38,6 +43,10 @@ const MODULE_MAP: Record<DomainName, string> = {
   time: "./time/index.js",
   service_catalog: "./service-catalog/index.js",
   attributes: "./attributes/index.js",
+  accounts: "./accounts/index.js",
+  groups: "./groups/index.js",
+  locations: "./locations/index.js",
+  cmdb: "./cmdb/index.js",
 };
 
 /** Known tool names per domain for reporting after load. */
@@ -47,6 +56,18 @@ const DOMAIN_TOOLS: Record<DomainName, string[]> = {
     "tdx_tickets_get",
     "tdx_tickets_create",
     "tdx_tickets_update",
+    "tdx_tickets_reply",
+    "tdx_tickets_get_feed",
+    "tdx_tickets_get_tasks",
+    "tdx_tickets_get_contacts",
+    "tdx_tickets_add_contact",
+    "tdx_tickets_remove_contact",
+    "tdx_tickets_get_attachments",
+    "tdx_tickets_add_attachment",
+    "tdx_tickets_add_tag",
+    "tdx_tickets_get_types",
+    "tdx_tickets_get_statuses",
+    "tdx_tickets_get_priorities",
   ],
   knowledge_base: [
     "tdx_kb_search",
@@ -57,11 +78,22 @@ const DOMAIN_TOOLS: Record<DomainName, string[]> = {
   people: [
     "tdx_people_search",
     "tdx_people_get",
+    "tdx_people_get_by_username",
+    "tdx_people_get_groups",
+    "tdx_people_add_to_group",
+    "tdx_people_remove_from_group",
+    "tdx_people_set_active",
+    "tdx_people_create",
+    "tdx_people_update",
   ],
   assets: [
     "tdx_assets_search",
     "tdx_assets_get",
     "tdx_assets_create",
+    "tdx_assets_update",
+    "tdx_assets_delete",
+    "tdx_assets_get_attachments",
+    "tdx_assets_get_feed",
   ],
   projects: [
     "tdx_projects_search",
@@ -100,6 +132,44 @@ const DOMAIN_TOOLS: Record<DomainName, string[]> = {
     "tdx_attributes_update_choice",
     "tdx_attributes_delete_choice",
   ],
+  accounts: [
+    "tdx_accounts_search",
+    "tdx_accounts_get",
+    "tdx_accounts_create",
+    "tdx_accounts_update",
+  ],
+  groups: [
+    "tdx_groups_search",
+    "tdx_groups_get",
+    "tdx_groups_get_members",
+    "tdx_groups_create",
+    "tdx_groups_update",
+    "tdx_groups_add_member",
+    "tdx_groups_remove_member",
+  ],
+  locations: [
+    "tdx_locations_search",
+    "tdx_locations_get",
+    "tdx_locations_create",
+    "tdx_locations_update",
+    "tdx_locations_get_rooms",
+    "tdx_locations_get_room",
+    "tdx_locations_create_room",
+    "tdx_locations_update_room",
+    "tdx_locations_delete_room",
+  ],
+  cmdb: [
+    "tdx_cmdb_search",
+    "tdx_cmdb_get",
+    "tdx_cmdb_get_relationships",
+    "tdx_cmdb_get_feed",
+    "tdx_cmdb_create",
+    "tdx_cmdb_update",
+    "tdx_cmdb_delete",
+    "tdx_cmdb_add_relationship",
+    "tdx_cmdb_remove_relationship",
+    "tdx_cmdb_add_attachment",
+  ],
 };
 
 /**
@@ -112,12 +182,22 @@ const DOMAIN_TOOLS: Record<DomainName, string[]> = {
 class DomainRegistry {
   private loadedDomains = new Set<DomainName>();
   private serverRef: McpServer | null = null;
+  private identityRef: PortalIdentity | null = null;
 
   /**
    * Sets the MCP server reference used when registering domain tools.
    */
   setServer(server: McpServer): void {
     this.serverRef = server;
+  }
+
+  /**
+   * Sets the verified portal identity threaded into each domain's register()
+   * so attribution-aware tools can enforce a human-attributable audit trail.
+   * Stdio has no portal header, so this stays null there.
+   */
+  setIdentity(identity: PortalIdentity | null): void {
+    this.identityRef = identity;
   }
 
   /**
@@ -140,7 +220,7 @@ class DomainRegistry {
     }
 
     const domainModule = await this.importDomain(domain);
-    domainModule.register(server);
+    domainModule.register(server, this.identityRef);
     this.loadedDomains.add(domain);
 
     server.sendToolListChanged();
@@ -171,6 +251,7 @@ class DomainRegistry {
   reset(): void {
     this.loadedDomains.clear();
     this.serverRef = null;
+    this.identityRef = null;
   }
 
   /**

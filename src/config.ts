@@ -68,6 +68,14 @@ const tdxConfigSchema = z.object({
   preloadDomains: z.array(z.string()).default(["tickets"]),
 
   rateLimitBuffer: z.number().int().nonnegative().default(5),
+
+  /**
+   * Gate for privileged people writes (security role, active status, and group
+   * membership). Off by default: even an attributed caller may not perform these
+   * privileged operations unless this is explicitly enabled. Defense in depth —
+   * the TDX service account should also run under a least-privilege role.
+   */
+  allowPrivilegedPeopleWrites: z.boolean().default(false),
 });
 
 /** Validated TDX MCP server configuration. */
@@ -117,6 +125,11 @@ function readEnv(): Record<string, unknown> {
   // Rate limit buffer
   if (env.TDX_RATE_LIMIT_BUFFER !== undefined)
     raw.rateLimitBuffer = parseInt(env.TDX_RATE_LIMIT_BUFFER, 10);
+
+  // Privileged people-write gate (off unless explicitly "true")
+  if (env.TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES !== undefined)
+    raw.allowPrivilegedPeopleWrites =
+      env.TDX_ALLOW_PRIVILEGED_PEOPLE_WRITES.toLowerCase() === "true";
 
   return raw;
 }
